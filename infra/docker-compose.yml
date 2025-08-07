@@ -98,6 +98,28 @@ services:
       timeout: 10s
       retries: 5
 
+  behavior_analytics:
+    build:
+      context: ..
+      dockerfile: behavior_analytics/Dockerfile
+    container_name: behavior_analytics
+    restart: on-failure
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - LOG_INDEXER_URL=http://log_indexer
+      - ORCHESTRATOR_URL=http://orchestrator
+      - ANOMALY_THRESHOLD=${ANOMALY_THRESHOLD:-0.9}
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    labels:
+      - 'self_healing_supervisor=true'
+
   frontend:
     build:
       context: ..
