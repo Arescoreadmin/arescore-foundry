@@ -14,8 +14,14 @@ async def health() -> dict:
 
 def _log(message: str) -> None:
     settings = get_settings()
+    headers = {"Authorization": f"Bearer {settings.auth_token}"}
     try:
-        requests.post(settings.log_indexer_url, json={"service": "behavior_analytics", "message": message})
+        requests.post(
+            f"{settings.log_indexer_url}/log",
+            json={"service": "behavior_analytics", "message": message},
+            headers=headers,
+            timeout=5,
+        )
     except Exception:
         pass
 

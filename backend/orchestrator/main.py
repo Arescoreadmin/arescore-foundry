@@ -4,7 +4,7 @@ from typing import Dict, List
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
-from common.logging import log_event
+from .logging import log_event
 
 VERSION = "0.1.0"
 
@@ -20,6 +20,10 @@ def _auth(request: Request) -> None:
 
 class World(BaseModel):
     name: str
+
+
+class Alert(BaseModel):
+    detail: str
 
 @app.get("/health")
 async def health() -> Dict[str, str]:
@@ -52,3 +56,10 @@ async def delete_world(world_id: int, request: Request) -> Dict[str, str]:
         raise HTTPException(status_code=404, detail="World not found")
     log_event("orchestrator", f"world deleted: {name}")
     return {"status": "deleted"}
+
+
+@app.post("/alerts")
+async def alerts(alert: Alert, request: Request) -> Dict[str, str]:
+    _auth(request)
+    log_event("orchestrator", f"alert received: {alert.detail}")
+    return {"status": "ok"}
