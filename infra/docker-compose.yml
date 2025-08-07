@@ -1,0 +1,119 @@
+version: '3.9'
+services:
+  log_indexer:
+    build:
+      context: ..
+      dockerfile: infra/log_indexer.Dockerfile
+    container_name: log_indexer
+    restart: on-failure
+    ports:
+      - '8004:80'
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+    volumes:
+      - log_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  orchestrator:
+    build:
+      context: ..
+      dockerfile: infra/orchestrator.Dockerfile
+    container_name: orchestrator
+    restart: on-failure
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+    ports:
+      - '8000:80'
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - LOG_INDEXER_URL=http://log_indexer
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  sentinelcore:
+    build:
+      context: ..
+      dockerfile: infra/sentinelcore.Dockerfile
+    container_name: sentinelcore
+    restart: on-failure
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+    ports:
+      - '8001:80'
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - LOG_INDEXER_URL=http://log_indexer
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  sentinelred:
+    build:
+      context: ..
+      dockerfile: infra/sentinelred.Dockerfile
+    container_name: sentinelred
+    restart: on-failure
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+    ports:
+      - '8002:80'
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - LOG_INDEXER_URL=http://log_indexer
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  mutation_engine:
+    build:
+      context: ..
+      dockerfile: infra/mutation_engine.Dockerfile
+    container_name: mutation_engine
+    restart: on-failure
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+    ports:
+      - '8003:80'
+    environment:
+      - AUTH_TOKEN=${AUTH_TOKEN}
+      - LOG_INDEXER_URL=http://log_indexer
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost/health']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/frontend.Dockerfile
+    container_name: frontend
+    restart: on-failure
+    depends_on:
+      orchestrator:
+        condition: service_started
+    ports:
+      - '3000:3000'
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  log_data:
