@@ -1,0 +1,30 @@
+version: '3.9'
+services:
+  orchestrator:
+    build:
+      context: .
+      dockerfile: infra/orchestrator.Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - sentinel_core
+      - sentinel_red
+      - log_indexer
+  sentinel_core:
+    build:
+      context: .
+      dockerfile: infra/sentinel_core.Dockerfile
+    ports:
+      - "8001:8000"
+  sentinel_red:
+    build:
+      context: .
+      dockerfile: infra/sentinel_red.Dockerfile
+    ports:
+      - "8002:8000"
+  log_indexer:
+    build:
+      context: .
+      dockerfile: infra/log_indexer.Dockerfile
+    ports:
+      - "8003:8000"
