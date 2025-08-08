@@ -1,30 +1,83 @@
-version: '3.9'
+version: "3.9"
+
+x-service-base: &service-base
+  restart: unless-stopped
+  env_file:
+    - .env
+  networks:
+    - app_net
+
+x-healthcheck-curl: &healthcheck-curl
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 10s
+
 services:
   orchestrator:
+    <<: *service-base
     build:
       context: .
       dockerfile: infra/orchestrator.Dockerfile
+    container_name: orchestrator
     ports:
       - "8000:8000"
     depends_on:
-      - sentinel_core
-      - sentinel_red
-      - log_indexer
+      log_indexer:
+        condition: service_healthy
+      sentinel_core:
+        condition: service_started
+      sentinel_red:
+        condition: service_started
+    healthcheck:
+      <<: *healthcheck-curl
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
   sentinel_core:
+    <<: *service-base
     build:
       context: .
       dockerfile: infra/sentinel_core.Dockerfile
+    container_name: sentinel_core
     ports:
-      - "8001:8000"
+      - "8001:8001"
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck-curl
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8001/health || exit 1"]
   sentinel_red:
+    <<: *service-base
     build:
       context: .
       dockerfile: infra/sentinel_red.Dockerfile
+    container_name: sentinel_red
     ports:
-      - "8002:8000"
+      - "8002:8002"
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+    healthcheck:
+      <<: *healthcheck-curl
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8002/health || exit 1"]
   log_indexer:
+    <<: *service-base
     build:
       context: .
       dockerfile: infra/log_indexer.Dockerfile
+    container_name: log_indexer
     ports:
-      - "8003:8000"
+      - "8003:8003"
+    healthcheck:
+      <<: *healthcheck-curl
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8003/health || exit 1"]
+    volumes:
+      - log_data:/var/log/sentinel_foundry/
+
+volumes:
+  log_data:
+    driver: local
+
+networks:
+  app_net:
+    driver: bridge
