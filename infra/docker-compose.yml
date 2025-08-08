@@ -1,0 +1,161 @@
+﻿# Compose v2 (no version key)
+name: arescore-foundry
+
+networks:
+  foundry_net: {}
+
+services:
+  # ---------- Core Services ----------
+  log_indexer:
+    build:
+      context: ../backend/log_indexer
+    container_name: log_indexer
+    env_file: [.env]
+    ports: ["9000:9000"]
+    networks: [foundry_net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:9000/health'); sys.exit(0)\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  orchestrator:
+    build:
+      context: ../backend/orchestrator
+    container_name: orchestrator
+    env_file: [.env]
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+    ports: ["8000:8000"]
+    networks: [foundry_net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/health'); sys.exit(0)\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  sentinelcore:
+    build:
+      context: ../backend/sentinelcore
+    container_name: sentinelcore
+    env_file: [.env]
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    ports: ["8001:8001"]
+    networks: [foundry_net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8001/health'); sys.exit(0)\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  sentinelred:
+    build:
+      context: ../backend/sentinelred
+    container_name: sentinelred
+    env_file: [.env]
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    ports: ["8002:8002"]
+    networks: [foundry_net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8002/health'); sys.exit(0)\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  mutation_engine:
+    build:
+      context: ../backend/mutation_engine
+    container_name: mutation_engine
+    env_file: [.env]
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    ports: ["8003:8003"]
+    networks: [foundry_net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8003/health'); sys.exit(0)\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  behavior_analytics:
+    build:
+      context: ../backend/behavior_analytics
+    container_name: behavior_analytics
+    env_file: [.env]
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    ports: ["8004:8004"]
+    networks: [foundry_net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8004/health'); sys.exit(0)\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ---------- Frontend (PROD by default) ----------
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        # forwarded to Vite at build-time; set in .env as VITE_API_BASE=http://orchestrator:8000
+        VITE_API_BASE: ${VITE_API_BASE}
+    container_name: frontend
+    env_file: [.env]
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    # Nginx (unprivileged) serves on 8080 internally, we expose it on 3000 outside
+    ports: ["3000:8080"]
+    networks: [foundry_net]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # ---------- Frontend (DEV profile) ----------
+  frontend_dev:
+    build:
+      context: ../frontend
+    container_name: frontend_dev
+    env_file: [.env]
+    command: ["npm","run","dev","--","--host","--port","5173"]
+    ports: ["5173:5173"]
+    networks: [foundry_net]
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    profiles: ["dev"]
+    restart: unless-stopped
