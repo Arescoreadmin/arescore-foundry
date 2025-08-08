@@ -1,3 +1,15 @@
+// --- BEGIN: runtime client smoke test ---
+import client from './api/client';
+
+(async () => {
+  try {
+    const res = await client.get('/health'); // calls http://localhost:8000/health via /api
+    console.log('API health:', res);          // expect: { status: "ok" }
+  } catch (err) {
+    console.error('API health failed:', err);
+  }
+})();
+// --- END: runtime client smoke test ---
 const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 const el = document.getElementById("app");
 el.innerHTML = `

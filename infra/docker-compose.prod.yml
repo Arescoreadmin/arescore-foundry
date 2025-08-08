@@ -1,0 +1,106 @@
+name: ares-app
+
+# DRY defaults for all services
+x-defaults: &defaults
+  restart: unless-stopped
+  pull_policy: always
+  networks:
+    - app
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  orchestrator:
+    <<: *defaults
+    image: ghcr.io/arescoreadmin/arescore-foundry-orchestrator:latest
+    env_file:
+      - .env
+    # Healthcheck uses Python so we don't depend on curl/wget being installed
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=2).status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  sentinelcore:
+    <<: *defaults
+    image: ghcr.io/arescoreadmin/arescore-foundry-sentinelcore:latest
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8001/health', timeout=2).status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  sentinelred:
+    <<: *defaults
+    image: ghcr.io/arescoreadmin/arescore-foundry-sentinelred:latest
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health', timeout=2).status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  mutation_engine:
+    <<: *defaults
+    image: ghcr.io/arescoreadmin/arescore-foundry-mutation_engine:latest
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8003/health', timeout=2).status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  log_indexer:
+    <<: *defaults
+    image: ghcr.io/arescoreadmin/arescore-foundry-log_indexer:latest
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:9000/health', timeout=2).status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  behavior_analytics:
+    <<: *defaults
+    image: ghcr.io/arescoreadmin/arescore-foundry-behavior_analytics:latest
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8004/health', timeout=2).status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  frontend:
+    <<: *defaults
+    image: ghcr.io/arescoreadmin/arescore-foundry-frontend:latest
+    ports:
+      - "80:8080"
+    # We don't block startup on orchestrator being healthy to avoid flapping;
+    # you can uncomment the depends_on block if you prefer strict gating.
+    # depends_on:
+    #   orchestrator:
+    #     condition: service_healthy
+    volumes:
+      # Full Nginx config (must contain default.conf)
+      - ./nginx.d:/etc/nginx/conf.d:ro
+      # Runtime config file, served at /config.js (never cached)
+      - ./nginx/config.js:/usr/share/nginx/html/config.js:ro
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # nginx-unprivileged (alpine) has wget
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+networks:
+  app:
+    driver: bridge
