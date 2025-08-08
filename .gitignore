@@ -1,0 +1,11 @@
+infra/.env
+# logs
+**/*.log
+# node
+frontend/node_modules
+frontend/dist
+# python
+**/__pycache__/
+**/*.py[cod]
+# zips / local artifacts
+*.zip
