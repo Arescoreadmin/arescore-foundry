@@ -15,3 +15,6 @@ frontend/node_modules
 frontend/dist
 **/__pycache__/
 **/*.py[cod]
+infra/docker-compose.frontend.yml
+infra/nginx/
+infra/nginx.d/

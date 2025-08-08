@@ -1,162 +1,106 @@
-name: arescore-foundry
-networks:
-  foundry_net:
+name: ares-app
+
+# DRY defaults for all services
+x-defaults: &defaults
+  restart: unless-stopped
+  pull_policy: always
+  networks:
+    - app
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
 
 services:
-  frontend:
-      # ...
-    volumes:
-      - ./nginx/frontend.conf:/etc/nginx/conf.d/default.conf:ro
-    image: ghcr.io/arescoreadmin/arescore-foundry-frontend:latest
-    container_name: frontend
-    depends_on:
-      orchestrator:
-        condition: service_started
-    networks: [foundry_net]
-    # nginx listens on 8080 in the image; publish host:80
-    ports:
-      - "80:8080"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
-
   orchestrator:
+    <<: *defaults
     image: ghcr.io/arescoreadmin/arescore-foundry-orchestrator:latest
-    container_name: orchestrator
-    depends_on:
-      log_indexer:
-        condition: service_started
-    environment:
-      ORCHESTRATOR_URL: http://orchestrator:8000
-      LOG_INDEXER_URL: http://log_indexer:9000
-      SENTINELCORE_URL: http://sentinelcore:8001
-      SENTINELRED_URL: http://sentinelred:8002
-      MUTATION_ENGINE_URL: http://mutation_engine:8003
-      BEHAVIOR_ANALYTICS_URL: http://behavior_analytics:8004
-      ORCH_TOKEN: ${ORCH_TOKEN:-dev}
-      LOG_TOKEN: ${LOG_TOKEN:-dev}
-    networks: [foundry_net]
-    expose: ["8000"]
+    env_file:
+      - .env
+    # Healthcheck uses Python so we don't depend on curl/wget being installed
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/health'); sys.exit(0)\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=2).status==200 else 1)\""]
       interval: 10s
       timeout: 3s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      retries: 6
+      start_period: 10s
 
   sentinelcore:
+    <<: *defaults
     image: ghcr.io/arescoreadmin/arescore-foundry-sentinelcore:latest
-    container_name: sentinelcore
-    depends_on:
-      orchestrator:
-        condition: service_started
-      log_indexer:
-        condition: service_started
-    environment:
-      ORCHESTRATOR_URL: http://orchestrator:8000
-      LOG_INDEXER_URL: http://log_indexer:9000
-      SENTINELCORE_URL: http://sentinelcore:8001
-      LOG_TOKEN: ${LOG_TOKEN:-dev}
-      ORCH_TOKEN: ${ORCH_TOKEN:-dev}
-    networks: [foundry_net]
-    expose: ["8001"]
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8001/health'); sys.exit(0)\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8001/health', timeout=2).status==200 else 1)\""]
       interval: 10s
       timeout: 3s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      retries: 6
+      start_period: 10s
 
   sentinelred:
+    <<: *defaults
     image: ghcr.io/arescoreadmin/arescore-foundry-sentinelred:latest
-    container_name: sentinelred
-    depends_on:
-      orchestrator:
-        condition: service_started
-      log_indexer:
-        condition: service_started
-    environment:
-      ORCHESTRATOR_URL: http://orchestrator:8000
-      LOG_INDEXER_URL: http://log_indexer:9000
-      SENTINELRED_URL: http://sentinelred:8002
-      LOG_TOKEN: ${LOG_TOKEN:-dev}
-      ORCH_TOKEN: ${ORCH_TOKEN:-dev}
-    networks: [foundry_net]
-    expose: ["8002"]
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8002/health'); sys.exit(0)\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health', timeout=2).status==200 else 1)\""]
       interval: 10s
       timeout: 3s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      retries: 6
+      start_period: 10s
 
   mutation_engine:
+    <<: *defaults
     image: ghcr.io/arescoreadmin/arescore-foundry-mutation_engine:latest
-    container_name: mutation_engine
-    depends_on:
-      orchestrator:
-        condition: service_started
-      log_indexer:
-        condition: service_started
-    environment:
-      ORCHESTRATOR_URL: http://orchestrator:8000
-      LOG_INDEXER_URL: http://log_indexer:9000
-      MUTATION_ENGINE_URL: http://mutation_engine:8003
-      LOG_TOKEN: ${LOG_TOKEN:-dev}
-      ORCH_TOKEN: ${ORCH_TOKEN:-dev}
-    networks: [foundry_net]
-    expose: ["8003"]
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8003/health'); sys.exit(0)\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8003/health', timeout=2).status==200 else 1)\""]
       interval: 10s
       timeout: 3s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
-
-  behavior_analytics:
-    image: ghcr.io/arescoreadmin/arescore-foundry-behavior_analytics:latest
-    container_name: behavior_analytics
-    depends_on:
-      orchestrator:
-        condition: service_started
-      log_indexer:
-        condition: service_started
-    environment:
-      ORCHESTRATOR_URL: http://orchestrator:8000
-      LOG_INDEXER_URL: http://log_indexer:9000
-      BEHAVIOR_ANALYTICS_URL: http://behavior_analytics:8004
-      LOG_TOKEN: ${LOG_TOKEN:-dev}
-      ORCH_TOKEN: ${ORCH_TOKEN:-dev}
-    networks: [foundry_net]
-    expose: ["8004"]
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8004/health'); sys.exit(0)\" || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      retries: 6
+      start_period: 10s
 
   log_indexer:
+    <<: *defaults
     image: ghcr.io/arescoreadmin/arescore-foundry-log_indexer:latest
-    container_name: log_indexer
-    environment:
-      LOG_INDEXER_URL: http://log_indexer:9000
-      LOG_TOKEN: ${LOG_TOKEN:-dev}
-    networks: [foundry_net]
-    expose: ["9000"]
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:9000/health'); sys.exit(0)\" || exit 1"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:9000/health', timeout=2).status==200 else 1)\""]
       interval: 10s
       timeout: 3s
-      retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      retries: 6
+      start_period: 10s
+
+  behavior_analytics:
+    <<: *defaults
+    image: ghcr.io/arescoreadmin/arescore-foundry-behavior_analytics:latest
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8004/health', timeout=2).status==200 else 1)\""]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  frontend:
+    <<: *defaults
+    image: ghcr.io/arescoreadmin/arescore-foundry-frontend:latest
+    ports:
+      - "80:8080"
+    # We don't block startup on orchestrator being healthy to avoid flapping;
+    # you can uncomment the depends_on block if you prefer strict gating.
+    # depends_on:
+    #   orchestrator:
+    #     condition: service_healthy
+    volumes:
+      # Full Nginx config (must contain default.conf)
+      - ./nginx.d:/etc/nginx/conf.d:ro
+      # Runtime config file, served at /config.js (never cached)
+      - ./nginx/config.js:/usr/share/nginx/html/config.js:ro
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      # nginx-unprivileged (alpine) has wget
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+networks:
+  app:
+    driver: bridge
