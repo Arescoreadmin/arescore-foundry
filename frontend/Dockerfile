@@ -1,8 +1,8 @@
-# frontend/Dockerfile
 FROM node:18-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --quiet
+# no lockfile -> use npm install
+RUN --mount=type=cache,target=/root/.npm npm install --no-audit --no-fund
 COPY . .
 RUN npm run build
 
