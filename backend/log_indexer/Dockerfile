@@ -1,14 +1,24 @@
-FROM python:3.11.9-slim@sha256:2856e6af199e8128161abd320575eb9b341f3b76f017b5d0c9cd364f60d8a050
+FROM python:3.11-slim
 
-RUN useradd -m appuser
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# non-root user
+RUN useradd -u 10001 -m appuser
+
 WORKDIR /app
-
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install -U pip && pip install --no-cache-dir -r requirements.txt
 
-COPY ./app ./app
-
+COPY indexer.py .
+RUN chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 9000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9000"]
+EXPOSE 8080
+HEALTHCHECK --interval=20s --timeout=3s --retries=3 \
+  CMD python - <<'PY' || exit 1
+import urllib.request as u
+u.urlopen("http://127.0.0.1:8080/health", timeout=2).read(); print("ok")
+PY
+
+CMD ["python","indexer.py"]

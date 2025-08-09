@@ -1,17 +1,17 @@
-## What
-- 
+## Summary
+<!-- What changed and why. Keep it tight. -->
 
-## Acceptance Proof
-- [ ] Local `docker compose up --build` passed
-- [ ] `/health` & `/ready` green
-- [ ] Screens/logs attached
+## Changes
+- [ ] 
 
-## Security Notes
-- Threats considered:
-- Secrets handled via:
-- Egress/ingress changes:
+## Acceptance Criteria
+- [ ] Local build passes
+- [ ] `docker compose up -d` → all services healthy in <60s (attach `compose ps` or logs)
+- [ ] Endpoint proof (e.g., `/api/ready` 200)
+- [ ] Security invariants preserved (non-root, pinned base, no secrets in repo)
 
-## Checklist
-- [ ] Tests added/updated
-- [ ] Structured logging added
-- [ ] Docs updated
+## Testing Evidence
+<!-- Paste curl outputs, screenshots, or logs -->
+
+## Risk & Rollback
+<!-- What could break, and how to revert safely -->
