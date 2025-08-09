@@ -1,5 +1,2 @@
-/**
- * Runtime configuration injected into the browser before the app loads.
- * Adjust this when the API URL changes (dev/prod).
- */
-window.API_BASE = "http://localhost:8000";
+window.API_BASE = "/api";
+window.__APP_CONFIG__ = { API_BASE: "/api" };
