@@ -15,7 +15,8 @@ x-defaults: &defaults
 services:
   orchestrator:
     <<: *defaults
-    image: ghcr.io/arescoreadmin/arescore-foundry-orchestrator:latest
+    image: ghcr.io/arescoreadmin/arescore-foundry-frontend@sha256:efbaf03357f5eacd1c5af01a3f06d7f56b468e30934bb3db3695cfe69b0cd968
+
     env_file:
       - .env
     # Healthcheck uses Python so we don't depend on curl/wget being installed
@@ -94,11 +95,10 @@ services:
     security_opt:
       - no-new-privileges:true
     healthcheck:
-      # nginx-unprivileged (alpine) has wget
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health >/dev/null 2>&1"]
-      interval: 10s
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health | grep -q '^ok$' || exit 1"]
+      interval: 15s
       timeout: 3s
-      retries: 6
+      retries: 3
       start_period: 10s
 
 networks:
