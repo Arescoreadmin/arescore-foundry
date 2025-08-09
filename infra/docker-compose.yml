@@ -1,4 +1,9 @@
-﻿version: "3.9"
+﻿# infra/docker-compose.yml
+# Drop-in compose: boots core stack now; extra services gated by profiles.
+# Usage:
+#   cd infra
+#   docker compose up --build                 # core only (orchestrator, log_indexer, frontend)
+#   docker compose --profile extended up -d   # include extra services when their dirs exist
 
 x-common-env: &common-env
   LOG_ENDPOINT: http://log_indexer:8080/log
@@ -26,7 +31,45 @@ services:
     depends_on:
       - log_indexer
 
+  log_indexer:
+    build:
+      context: ..
+      dockerfile: log_indexer/Dockerfile
+    environment:
+      LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/log"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+
+  frontend:
+    # Build from the frontend/ folder so COPY paths resolve (nginx.conf lives there)
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    environment:
+      # Frontend reads API_BASE at runtime via /public/config.js (served as /config.js)
+      API_BASE: ${API_BASE:-http://localhost:8000}
+    ports:
+      - "3000:8080"   # host:container (nginx-unprivileged serves on 8080)
+    depends_on:
+      - orchestrator
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/"]
+      interval: 20s
+      timeout: 3s
+      retries: 3
+
+  # ----------------------------
+  # Optional services (enable when ready)
+  # Bring up with: docker compose --profile extended up
+  # ----------------------------
+
   sentinelcore:
+    profiles: ["extended"]
     build:
       context: ..
       dockerfile: sentinelcore/Dockerfile
@@ -45,6 +88,7 @@ services:
       - orchestrator
 
   sentinelred:
+    profiles: ["extended"]
     build:
       context: ..
       dockerfile: sentinelred/Dockerfile
@@ -64,6 +108,7 @@ services:
       - orchestrator
 
   behavior_analytics:
+    profiles: ["extended"]
     build:
       context: ..
       dockerfile: behavior_analytics/Dockerfile
@@ -81,6 +126,7 @@ services:
       - log_indexer
 
   quarantine_engine:
+    profiles: ["extended"]
     build:
       context: ..
       dockerfile: quarantine_engine/Dockerfile
@@ -98,6 +144,7 @@ services:
       - log_indexer
 
   notification_dispatcher:
+    profiles: ["extended"]
     build:
       context: ..
       dockerfile: notification_dispatcher/Dockerfile
@@ -117,6 +164,7 @@ services:
       - log_indexer
 
   mutation_engine:
+    profiles: ["extended"]
     build:
       context: ..
       dockerfile: mutation_engine/Dockerfile
@@ -132,27 +180,6 @@ services:
       retries: 3
     depends_on:
       - log_indexer
-
-  frontend:
-    build:
-      context: ..
-      dockerfile: frontend/Dockerfile
-    environment:
-      # front-end usually just needs API_BASE at runtime (served via /config.js)
-      API_BASE: ${API_BASE:-http://localhost:8000}
-    ports:
-      - "3000:8080" # host:container (Nginx serves 8080)
-    depends_on:
-      - orchestrator
-
-  log_indexer:
-    build:
-      context: ..
-      dockerfile: log_indexer/Dockerfile
-    environment:
-      LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
-    ports:
-      - "8080:8080"
 
 networks:
   default: {}
