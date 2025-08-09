@@ -60,25 +60,6 @@ open_issue() {
 
 # ---------------- P0: FIX BROKEN STUFF ----------------
 
-open_issue "Consolidate service directories & fix compose contexts" \
-"type/infra,priority/P0,area/orchestrator,area/log_indexer,area/frontend" \
-"## Why
-Duplicate trees (backend/*) risk drift. Single-source per service simplifies builds and reviews.
-
-## Scope
-- Remove /backend/* duplicates; keep /orchestrator, /log_indexer, /frontend, /infra.
-- Update infra/docker-compose.yml build contexts to ../<service>.
-- Ensure images build and run.
-
-## Acceptance
-- docker compose up -d → all services healthy in <60s.
-- curl http://localhost:3000/api/ready → 200 JSON.
-- No references to removed backend/*.
-- Attach compose ps screenshot/logs.
-
-## Branch
-feat/structure-consolidate
-"
 
 open_issue "Finalize /api proxy via Nginx (no CORS) + runtime config" \
 "type/infra,priority/P0,area/frontend" \

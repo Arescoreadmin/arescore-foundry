@@ -31,7 +31,8 @@ services:
     ports: ["8080:8080"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/ready"]
+      # indexer exposes /health (not /ready)
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 20s
       timeout: 3s
       retries: 3
@@ -39,11 +40,11 @@ services:
   frontend:
     build:
       context: ../frontend
-    # Dockerfile lives in frontend/
       dockerfile: Dockerfile
     environment:
-      API_BASE: ${API_BASE:-http://localhost:8000}
-    ports: ["3000:8080"]
+      # go through nginx proxy → orchestrator
+      API_BASE: ${API_BASE:-/api}
+    ports: ["3000:8080"]   # host:container
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/ready"]
@@ -51,7 +52,7 @@ services:
       timeout: 3s
       retries: 3
 
-  # Future services (enable once their dirs exist)
+  # Future services (enabled with --profile extended once dirs exist)
   sentinelcore:
     profiles: ["extended"]
     build: { context: ../sentinelcore, dockerfile: Dockerfile }
