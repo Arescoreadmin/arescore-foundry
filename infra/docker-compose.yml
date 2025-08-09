@@ -1,10 +1,3 @@
-﻿# infra/docker-compose.yml
-# Drop-in compose: boots core stack now; extra services gated by profiles.
-# Usage:
-#   cd infra
-#   docker compose up --build                 # core only (orchestrator, log_indexer, frontend)
-#   docker compose --profile extended up -d   # include extra services when their dirs exist
-
 x-common-env: &common-env
   LOG_ENDPOINT: http://log_indexer:8080/log
   LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
@@ -16,170 +9,126 @@ x-common-env: &common-env
 services:
   orchestrator:
     build:
-      context: ..
-      dockerfile: orchestrator/Dockerfile
+      context: ../orchestrator
+      dockerfile: Dockerfile
     environment:
       <<: *common-env
       SERVICE_NAME: orchestrator
-    ports:
-      - "8000:8000"
+    ports: ["8000:8000"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/ready"]
       interval: 20s
       timeout: 3s
       retries: 3
-    depends_on:
-      - log_indexer
+    depends_on: [log_indexer]
 
   log_indexer:
     build:
-      context: ..
-      dockerfile: log_indexer/Dockerfile
+      context: ../log_indexer
+      dockerfile: Dockerfile
     environment:
       LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
-    ports:
-      - "8080:8080"
+    ports: ["8080:8080"]
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/log"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
       interval: 20s
       timeout: 3s
       retries: 3
 
   frontend:
-    # Build from the frontend/ folder so COPY paths resolve (nginx.conf lives there)
     build:
       context: ../frontend
+    # Dockerfile lives in frontend/
       dockerfile: Dockerfile
     environment:
-      # Frontend reads API_BASE at runtime via /public/config.js (served as /config.js)
       API_BASE: ${API_BASE:-http://localhost:8000}
-    ports:
-      - "3000:8080"   # host:container (nginx-unprivileged serves on 8080)
-    depends_on:
-      - orchestrator
+    ports: ["3000:8080"]
+    depends_on: [orchestrator]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/"]
       interval: 20s
       timeout: 3s
       retries: 3
 
-  # ----------------------------
-  # Optional services (enable when ready)
-  # Bring up with: docker compose --profile extended up
-  # ----------------------------
-
+  # Future services (enable once their dirs exist)
   sentinelcore:
     profiles: ["extended"]
-    build:
-      context: ..
-      dockerfile: sentinelcore/Dockerfile
-    environment:
-      <<: *common-env
-      SERVICE_NAME: sentinelcore
-    ports:
-      - "8001:8001"
+    build: { context: ../sentinelcore, dockerfile: Dockerfile }
+    environment: { <<: *common-env, SERVICE_NAME: sentinelcore }
+    ports: ["8001:8001"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8001/ready"]
       interval: 20s
       timeout: 3s
       retries: 3
-    depends_on:
-      - log_indexer
-      - orchestrator
+    depends_on: [log_indexer, orchestrator]
 
   sentinelred:
     profiles: ["extended"]
-    build:
-      context: ..
-      dockerfile: sentinelred/Dockerfile
+    build: { context: ../sentinelred, dockerfile: Dockerfile }
     environment:
       <<: *common-env
       SERVICE_NAME: sentinelred
       ENABLE_SENTINELRED: ${ENABLE_SENTINELRED:-false}
-    ports:
-      - "8002:8002"
+    ports: ["8002:8002"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8002/ready"]
       interval: 20s
       timeout: 3s
       retries: 3
-    depends_on:
-      - log_indexer
-      - orchestrator
+    depends_on: [log_indexer, orchestrator]
 
   behavior_analytics:
     profiles: ["extended"]
-    build:
-      context: ..
-      dockerfile: behavior_analytics/Dockerfile
-    environment:
-      <<: *common-env
-      SERVICE_NAME: behavior_analytics
-    ports:
-      - "8003:8003"
+    build: { context: ../behavior_analytics, dockerfile: Dockerfile }
+    environment: { <<: *common-env, SERVICE_NAME: behavior_analytics }
+    ports: ["8003:8003"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8003/ready"]
       interval: 20s
       timeout: 3s
       retries: 3
-    depends_on:
-      - log_indexer
+    depends_on: [log_indexer]
 
   quarantine_engine:
     profiles: ["extended"]
-    build:
-      context: ..
-      dockerfile: quarantine_engine/Dockerfile
-    environment:
-      <<: *common-env
-      SERVICE_NAME: quarantine_engine
-    ports:
-      - "8004:8004"
+    build: { context: ../quarantine_engine, dockerfile: Dockerfile }
+    environment: { <<: *common-env, SERVICE_NAME: quarantine_engine }
+    ports: ["8004:8004"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8004/ready"]
       interval: 20s
       timeout: 3s
       retries: 3
-    depends_on:
-      - log_indexer
+    depends_on: [log_indexer]
 
   notification_dispatcher:
     profiles: ["extended"]
-    build:
-      context: ..
-      dockerfile: notification_dispatcher/Dockerfile
+    build: { context: ../notification_dispatcher, dockerfile: Dockerfile }
     environment:
       <<: *common-env
       SERVICE_NAME: notification_dispatcher
       SMTP_HOST: ${SMTP_HOST:-mailhog}
       SMTP_PORT: ${SMTP_PORT:-1025}
-    ports:
-      - "8005:8005"
+    ports: ["8005:8005"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8005/ready"]
       interval: 20s
       timeout: 3s
       retries: 3
-    depends_on:
-      - log_indexer
+    depends_on: [log_indexer]
 
   mutation_engine:
     profiles: ["extended"]
-    build:
-      context: ..
-      dockerfile: mutation_engine/Dockerfile
-    environment:
-      <<: *common-env
-      SERVICE_NAME: mutation_engine
-    ports:
-      - "8006:8006"
+    build: { context: ../mutation_engine, dockerfile: Dockerfile }
+    environment: { <<: *common-env, SERVICE_NAME: mutation_engine }
+    ports: ["8006:8006"]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8006/ready"]
       interval: 20s
       timeout: 3s
       retries: 3
-    depends_on:
-      - log_indexer
+    depends_on: [log_indexer]
 
 networks:
   default: {}
