@@ -24,6 +24,10 @@ docker-compose up --build
 
 ## Notes
 
-- All services expose `/health` endpoint for health checks.
+- All services expose `/ready` endpoints and are monitored via Compose healthchecks with `restart: unless-stopped`.
 - Environment variables control API keys and configs.
 - Use non-root users in Dockerfiles for security.
+
+### Kill/Recover Demo
+
+Run `./scripts/demo_restart.sh` to start the stack, kill a service, and watch it recover automatically.

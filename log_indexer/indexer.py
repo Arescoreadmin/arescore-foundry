@@ -9,6 +9,11 @@ _prev = "0"*64
 def health():
     return {"status": "ok"}
 
+
+@app.get("/ready")
+def ready():
+    return {"ready": True}
+
 @app.post("/log")
 async def log(req: Request):
     global _prev
