@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import os
+
+from common.logging import emit as emit_log
 
 app = FastAPI(title="Orchestrator")
 
@@ -14,6 +16,26 @@ app.add_middleware(
 )
 
 SERVICE = os.getenv("SERVICE_NAME", "orchestrator")
+
+
+@app.on_event("startup")
+async def startup_event() -> None:
+    emit_log({"event": "startup", "service": SERVICE})
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    response = await call_next(request)
+    emit_log(
+        {
+            "event": "request",
+            "service": SERVICE,
+            "method": request.method,
+            "path": request.url.path,
+            "status": response.status_code,
+        }
+    )
+    return response
 
 @app.get("/health")
 def health():
