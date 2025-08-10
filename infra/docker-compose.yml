@@ -1,9 +1,7 @@
+# Clean docker-compose (no 'version:' key)
 x-common-env: &common-env
   LOG_ENDPOINT: http://log_indexer:8080/log
   LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
-  REDACT_KEYS: ${REDACT_KEYS:-password,token,apikey,secret}
-  JWT_ISSUER: ${JWT_ISSUER:-forge.local}
-  JWT_AUD: ${JWT_AUD:-forge}
   SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-svc}
 
 services:
@@ -15,12 +13,13 @@ services:
       <<: *common-env
       SERVICE_NAME: orchestrator
     ports: ["8000:8000"]
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/ready"]
-      interval: 20s
+      interval: 15s
       timeout: 3s
-      retries: 3
-    depends_on: [log_indexer]
+      retries: 5
+      start_period: 10s
 
   log_indexer:
     build:
@@ -29,106 +28,76 @@ services:
     environment:
       LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
     ports: ["8080:8080"]
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
-      interval: 20s
+      interval: 15s
       timeout: 3s
-      retries: 3
+      retries: 5
+      start_period: 10s
 
   frontend:
     build:
       context: ../frontend
-    # Dockerfile lives in frontend/
       dockerfile: Dockerfile
     environment:
-      API_BASE: ${API_BASE:-http://localhost:8000}
+      # Frontend reads /config.js at runtime; keep this for clarity
+      API_BASE: ${API_BASE:-/api}
     ports: ["3000:8080"]
-    depends_on: [orchestrator]
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/"]
-      interval: 20s
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/ready"]
+      interval: 15s
       timeout: 3s
-      retries: 3
+      retries: 5
+      start_period: 10s
 
-  # Future services (enable once their dirs exist)
+  # Optional services (won't run unless profile is enabled)
   sentinelcore:
     profiles: ["extended"]
-    build: { context: ../sentinelcore, dockerfile: Dockerfile }
-    environment: { <<: *common-env, SERVICE_NAME: sentinelcore }
+    build:
+      context: ../sentinelcore
+      dockerfile: Dockerfile
+    environment:
+      <<: *common-env
+      SERVICE_NAME: sentinelcore
+      ORCHESTRATOR_URL: http://orchestrator:8000
     ports: ["8001:8001"]
+    restart: unless-stopped
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+      log_indexer:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8001/ready"]
-      interval: 20s
+      interval: 15s
       timeout: 3s
-      retries: 3
-    depends_on: [log_indexer, orchestrator]
+      retries: 5
+      start_period: 15s
 
   sentinelred:
     profiles: ["extended"]
-    build: { context: ../sentinelred, dockerfile: Dockerfile }
+    build:
+      context: ../sentinelred
+      dockerfile: Dockerfile
     environment:
       <<: *common-env
       SERVICE_NAME: sentinelred
-      ENABLE_SENTINELRED: ${ENABLE_SENTINELRED:-false}
+      ORCHESTRATOR_URL: http://orchestrator:8000
     ports: ["8002:8002"]
+    restart: unless-stopped
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+      log_indexer:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8002/ready"]
-      interval: 20s
+      interval: 15s
       timeout: 3s
-      retries: 3
-    depends_on: [log_indexer, orchestrator]
-
-  behavior_analytics:
-    profiles: ["extended"]
-    build: { context: ../behavior_analytics, dockerfile: Dockerfile }
-    environment: { <<: *common-env, SERVICE_NAME: behavior_analytics }
-    ports: ["8003:8003"]
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8003/ready"]
-      interval: 20s
-      timeout: 3s
-      retries: 3
-    depends_on: [log_indexer]
-
-  quarantine_engine:
-    profiles: ["extended"]
-    build: { context: ../quarantine_engine, dockerfile: Dockerfile }
-    environment: { <<: *common-env, SERVICE_NAME: quarantine_engine }
-    ports: ["8004:8004"]
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8004/ready"]
-      interval: 20s
-      timeout: 3s
-      retries: 3
-    depends_on: [log_indexer]
-
-  notification_dispatcher:
-    profiles: ["extended"]
-    build: { context: ../notification_dispatcher, dockerfile: Dockerfile }
-    environment:
-      <<: *common-env
-      SERVICE_NAME: notification_dispatcher
-      SMTP_HOST: ${SMTP_HOST:-mailhog}
-      SMTP_PORT: ${SMTP_PORT:-1025}
-    ports: ["8005:8005"]
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8005/ready"]
-      interval: 20s
-      timeout: 3s
-      retries: 3
-    depends_on: [log_indexer]
-
-  mutation_engine:
-    profiles: ["extended"]
-    build: { context: ../mutation_engine, dockerfile: Dockerfile }
-    environment: { <<: *common-env, SERVICE_NAME: mutation_engine }
-    ports: ["8006:8006"]
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8006/ready"]
-      interval: 20s
-      timeout: 3s
-      retries: 3
-    depends_on: [log_indexer]
+      retries: 5
+      start_period: 15s
 
 networks:
   default: {}
