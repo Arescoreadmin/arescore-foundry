@@ -1,0 +1,15 @@
+name: Compose Validate
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  compose-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Docker is available on GitHub-hosted Linux runners
+      - name: Validate docker compose file
+        run: docker compose -f infra/docker-compose.yml config
