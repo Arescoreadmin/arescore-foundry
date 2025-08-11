@@ -1,0 +1,43 @@
+{
+  "uid": "fastapi-overview",
+  "title": "FastAPI Overview",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Requests/sec by handler",
+      "targets": [
+        { "expr": "sum by (handler)(rate(http_requests_total[5m]))", "legendFormat": "{{handler}}" }
+      ],
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "p99 latency (s)",
+      "targets": [
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "p99" }
+      ],
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "5xx/sec",
+      "targets": [
+        { "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m]))", "legendFormat": "5xx" }
+      ],
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+    },
+    {
+      "type": "stat",
+      "title": "Target up (orchestrator)",
+      "targets": [
+        { "expr": "up{job=\"orchestrator\"}", "legendFormat": "up" }
+      ],
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+groups:
+  - name: fastapi_recording
+    interval: 30s
+    rules:
+      - record: job:http_requests_per_second_by_handler:rate5m
+        expr: sum by (handler) (rate(http_requests_total[5m]))
+      - record: job:http_5xx_per_second_by_handler:rate5m
+        expr: sum by (handler) (rate(http_requests_total{status=~"5.."}[5m]))
+      - record: job:http_2xx_per_second_by_handler:rate5m
+        expr: sum by (handler) (rate(http_requests_total{status=~"2.."}[5m]))
+      - record: job:http_requests_per_second:rate5m
+        expr: sum (rate(http_requests_total[5m]))
+      - record: job:http_request_duration_seconds:p50
+        expr: histogram_quantile(0.50, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))
+      - record: job:http_request_duration_seconds:p90
+        expr: histogram_quantile(0.90, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))
+      - record: job:http_request_duration_seconds:p99
+        expr: histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[5m])))
