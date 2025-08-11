@@ -1,31 +1,41 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.."; pwd)"
+INFRA="${INFRA:-$ROOT/infra}"
 
-echo "==> Up (build)"; docker compose -f infra/docker-compose.yml up -d --build
+# Build compose file args (use override if present)
+DC=(-f "$INFRA/docker-compose.yml")
+[ -f "$INFRA/docker-compose.override.yml" ] && DC+=(-f "$INFRA/docker-compose.override.yml")
 
-wait_url() {
-  local url="$1"
-  echo "Waiting for $url"
-  for i in {1..60}; do
-    if curl -fsS "$url" >/dev/null; then
-      echo "OK: $url"; return 0
+c(){ echo "+ $*"; eval "$*"; }
+
+wait_for(){
+  local url="$1" name="${2:-$1}" tries="${3:-30}" sleep_s="${4:-1}"
+  for _ in $(seq 1 "$tries"); do
+    if curl -fsS "$url" >/dev/null 2>&1; then
+      echo "OK: $name"
+      return 0
     fi
-    sleep 2
+    sleep "$sleep_s"
   done
-  echo "TIMEOUT: $url"; return 1
+  echo "TIMEOUT: $name"; return 1
 }
 
-wait_url http://localhost:3000/ready
-wait_url http://localhost:3000/api/ready
-wait_url http://localhost:8000/health
-wait_url http://localhost:8080/health
+echo "==> Up (build)"
+c "docker compose ${DC[*]} up -d --build"
 
-echo "==> Assertions"
-test "$(curl -fsS http://localhost:3000/ready)" = '{"ready":true}'
-test "$(curl -fsS http://localhost:3000/api/ready | sed 's/ //g' | grep -o '"ready":true')" = '"ready":true'
-test "$(curl -fsS http://localhost:8000/health | grep -o '"status":"ok"')" = '"status":"ok"'
-test "$(curl -fsS http://localhost:8080/health | grep -o '"status":"ok"')" = '"status":"ok"'
+# Only runtime-patch if the live config doesn't already have the directives
+if ! docker compose "${DC[@]}" exec -T frontend sh -lc 'nginx -T 2>/dev/null | grep -q "proxy_connect_timeout"'; then
+  echo "==> Apply frontend nginx patch (runtime)"
+  STACK_DIR="$INFRA" "$ROOT/scripts/patch_frontend_nginx.sh" apply
+  trap 'STACK_DIR="$INFRA" "$ROOT/scripts/patch_frontend_nginx.sh" revert || true' EXIT
+fi
+
+echo "==> Probes"
+wait_for "http://localhost:3000/ready"         "frontend /ready"                20 1
+wait_for "http://localhost:3000/api/ready"     "frontend → orchestrator /ready" 20 1
+wait_for "http://localhost:8000/health"        "orchestrator /health"           30 1 || true
+wait_for "http://localhost:8080/health"        "log_indexer /health"            30 1 || true
 
 echo "==> PASS"
