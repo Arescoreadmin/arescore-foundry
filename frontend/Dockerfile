@@ -1,26 +1,23 @@
-# ---------- Build Stage ----------
-FROM node:18-alpine AS build
-WORKDIR /app
+# syntax=docker/dockerfile:1.7
+FROM nginxinc/nginx-unprivileged:1.28-alpine
 
-COPY package*.json ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+# OCI metadata (optional)
+ARG VCS_REF=""
+ARG BUILD_DATE=""
+LABEL org.opencontainers.image.title="arescore-frontend" \
+      org.opencontainers.image.description="Nginx reverse proxy + static frontend (non-root)" \
+      org.opencontainers.image.source="https://github.com/Arescoreadmin/arescore-foundry" \
+      org.opencontainers.image.revision="${VCS_REF}" \
+      org.opencontainers.image.created="${BUILD_DATE}"
 
-COPY . .
-RUN npm run build
+# Use our hardened Nginx server config
+# (assumes your config lives at frontend/nginx.conf in the repo)
+COPY --chown=101:101 nginx.conf /etc/nginx/conf.d/default.conf
 
-# ---------- Runtime (non-root nginx) ----------
-FROM nginxinc/nginx-unprivileged:stable-alpine
-WORKDIR /usr/share/nginx/html
-
-COPY --from=build /app/dist .
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# escalate to install curl for healthcheck, then drop back to non-root
-USER root
-RUN apk add --no-cache curl
-USER nginx
+# Healthcheck hits the lightweight /ready endpoint served by Nginx
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:8080/ready || exit 1
 
 EXPOSE 8080
-HEALTHCHECK --interval=20s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -fsS http://127.0.0.1:8080/ready || exit 1
+USER 101
+# nginx-unprivileged already runs nginx in the foreground
