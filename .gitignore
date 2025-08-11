@@ -18,3 +18,7 @@ frontend/dist
 infra/docker-compose.frontend.yml
 infra/nginx/
 infra/nginx.d/
+
+# backup files
+*.bak
+*.bak.*
