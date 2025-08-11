@@ -21,6 +21,9 @@ ENV VITE_API_BASE=${VITE_API_BASE}
 ENV CI=true
 RUN --mount=type=cache,target=/root/.npm npm run build
 
+# Precompress assets for zero-CPU serving
+RUN find dist -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" -o -name "*.json" -o -name "*.txt" \) -print0 | xargs -0 -I{} sh -lc 'gzip -k -9 "{}" || true; if command -v brotli >/dev/null 2>&1; then brotli -Z -k "{}" || true; fi'
+
 ########## Runtime stage (non-root nginx) ##########
 FROM nginxinc/nginx-unprivileged:stable-alpine AS runtime
 
@@ -29,6 +32,9 @@ EXPOSE 8080
 
 # Copy built assets; ensure nginx (uid 101) owns them
 COPY --from=builder --chown=101:101 /app/dist/ /usr/share/nginx/html/
+
+# Enable gzip for text assets
+COPY --chown=101:101 nginx-gzip.conf /etc/nginx/conf.d/gzip.conf
 
 # Minimal optimized nginx config: caching + SPA fallback + basic headers
 RUN cat >/etc/nginx/conf.d/default.conf <<'NGINX'
