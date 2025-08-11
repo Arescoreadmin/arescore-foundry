@@ -1,57 +1,41 @@
 name: Build & Push Containers
 
 on:
-  pull_request:
   push:
-    branches: [ main ]
-
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [ main, codex/healthchecks-and-deps ]
+  pull_request:
+    branches: [ main, codex/healthchecks-and-deps ]
 
 jobs:
   build:
-    name: build (${{ matrix.name }}, ${{ matrix.path }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: frontend,      path: frontend }
-          - { name: orchestrator,  path: orchestrator }
-          - { name: log_indexer,   path: log_indexer }
-    if: ${{ hashFiles(format('{0}/Dockerfile', matrix.path)) != '' }}
+          - { name: frontend,          path: frontend }
+          - { name: orchestrator,       path: orchestrator }
+          - { name: log_indexer,        path: log_indexer }
+          - { name: mutation_engine,    path: mutation_engine }
+          - { name: sentinelcore,       path: sentinelcore }
+          - { name: sentinelred,        path: sentinelred }
+          - { name: behavior_analytics, path: behavior_analytics }
 
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR (push to main only)
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      - name: Check context exists
+        id: ctx
+        shell: bash
+        run: |
+          if [ -f "${{ matrix.path }}/Dockerfile" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "Context ok: ${{ matrix.path }}"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping ${{ matrix.name }} — no Dockerfile at ${{ matrix.path }}/Dockerfile"
+          fi
+
+      - name: Log in to GHCR (only on main)
+        if: steps.ctx.outputs.ok == 'true' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/arescore-${{ matrix.name }}
-          tags: |
-            type=raw,value=pr-${{ github.event.pull_request.number }},enable=${{ github.event_name == 'pull_request' }}
-            type=sha
-            type=ref,event=branch
-
-      - name: Build (and push on main)
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.path }}
-          file: ${{ matrix.path }}/Dockerfile
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
