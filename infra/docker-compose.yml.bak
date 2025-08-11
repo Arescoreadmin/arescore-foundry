@@ -1,0 +1,49 @@
+  sentinelcore:
+    profiles: ["extended"]
+    build:
+      context: ../sentinelcore
+      dockerfile: Dockerfile
+    environment:
+      LOG_ENDPOINT: http://log_indexer:8080/log
+      LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
+      SERVICE_NAME: sentinelcore
+      ORCHESTRATOR_URL: http://orchestrator:8000
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8001/ready"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  sentinelred:
+    profiles: ["extended"]
+    build:
+      context: ../sentinelred
+      dockerfile: Dockerfile
+    environment:
+      LOG_ENDPOINT: http://log_indexer:8080/log
+      LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
+      SERVICE_NAME: sentinelred
+      ORCHESTRATOR_URL: http://orchestrator:8000
+    ports:
+      - "8002:8002"
+    restart: unless-stopped
+    depends_on:
+      log_indexer:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8002/ready"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 15s

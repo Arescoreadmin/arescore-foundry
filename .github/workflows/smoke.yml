@@ -1,41 +1,176 @@
 name: Smoke
 
 on:
-  pull_request:
   push:
-    branches: [ main ]
+    branches: [ main, master, develop, dev, staging, release/** ]
+  pull_request:
+    branches: [ "**" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  stack:
+  smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DOCKER_BUILDKIT: "1"
+      COMPOSE_DOCKER_CLI_BUILD: "1"
+      # Make curl/jq output predictable
+      FORCE_COLOR: "1"
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Build images
-        working-directory: infra
+      - name: Docker info
         run: |
-          docker compose build
+          docker version
+          docker compose version || true
+          docker info
 
-      - name: Run stack
-        working-directory: infra
-        run: docker compose up -d
-
-      - name: Wait for health
+      - name: Pre-pull common bases (speed + flake reduction)
         run: |
-          bash -euxo pipefail -c '
-          for i in {1..30}; do
-            set +e
-            curl -fsS http://localhost:3000/ready >/dev/null && \
-            curl -fsS http://localhost:3000/api/ready >/dev/null && \
-            curl -fsS http://localhost:8080/health >/dev/null && exit 0
-            set -e
-            sleep 2
+          set -euxo pipefail
+          docker pull nginxinc/nginx-unprivileged:stable-alpine || true
+          docker pull node:18-alpine || true
+          docker pull python:3.11-slim || true
+
+      - name: Optional health patch (indexer) + health overrides
+        shell: bash
+        run: |
+          set -euxo pipefail
+          # If present, apply your idempotent patch for indexer health server
+          if [[ -x scripts/patch_log_indexer_health.sh ]]; then
+            scripts/patch_log_indexer_health.sh apply
+          fi
+
+          # If present, apply Compose health overrides (idempotent)
+          if [[ -x scripts/apply_healthchecks.sh ]]; then
+            scripts/apply_healthchecks.sh apply || true
+          fi
+
+      - name: Determine compose files
+        id: files
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(-f infra/docker-compose.yml)
+          for f in infra/docker-compose.override.yml \
+                   infra/docker-compose.health.yml \
+                   infra/docker-compose.depends.yml \
+                   infra/docker-compose.security.yml ; do
+            [[ -f "$f" ]] && files+=(-f "$f")
           done
-          echo "services not healthy in time"; docker compose -f infra/docker-compose.yml ps; exit 1
-          '
+          # Persist as output
+          printf '%s ' "${files[@]}" | sed 's/ $//' | tee /tmp/compose_files.txt
+          echo "files=$(cat /tmp/compose_files.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Build & up (use --wait if supported)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(cat /tmp/compose_files.txt)
+          if docker compose version 2>/dev/null | grep -qE 'v2\.(2[0-9]|[3-9][0-9])'; then
+            # Compose v2.20+ supports --wait
+            docker compose "${FILES[@]}" up -d --build --wait --wait-timeout 120
+          else
+            docker compose "${FILES[@]}" up -d --build
+          fi
+
+      - name: Fallback wait loop (if --wait was not used)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(cat /tmp/compose_files.txt)
+          if ! docker compose version 2>/dev/null | grep -qE 'v2\.(2[0-9]|[3-9][0-9])'; then
+            echo "Compose --wait not available, doing a manual wait for health…"
+            deadline=$((SECONDS+180))
+            while (( SECONDS < deadline )); do
+              out="$(docker compose "${FILES[@]}" ps)"
+              echo "$out"
+              # require orchestrator healthy and frontend healthy if defined
+              ok=1
+              grep -q 'orchestrator' <<<"$out" && grep -q '(healthy)' <<<"$(grep orchestrator <<<"$out")" || ok=0
+              grep -q 'frontend'     <<<"$out" && grep -q '(healthy)' <<<"$(grep frontend <<<"$out")"     || ok=0
+              # if log_indexer exists and has health, also require healthy
+              if grep -q 'log_indexer' <<<"$out"; then
+                if grep -q ' (health' <<<"$(grep log_indexer <<<"$out")"; then
+                  grep -q '(healthy)' <<<"$(grep log_indexer <<<"$out")" || ok=0
+                fi
+              fi
+              (( ok == 1 )) && break
+              sleep 3
+            done
+            (( ok == 1 )) || { echo "Services failed to reach healthy state in time"; exit 1; }
+          fi
+
+      - name: Show ps + effective config
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(cat /tmp/compose_files.txt)
+          mkdir -p artifacts
+          docker compose "${FILES[@]}" ps | tee artifacts/compose-ps.txt
+          docker compose "${FILES[@]}" config | tee artifacts/compose-config.yml
+
+      - name: Smoke probes
+        shell: bash
+        run: |
+          set -euxo pipefail
+          # Basic probes with retry
+          probe() {
+            local url="$1" name="$2" tries="${3:-30}"
+            for i in $(seq 1 "$tries"); do
+              code=$(curl -sS -o /dev/null -w '%{http_code}' "$url" || true)
+              echo "[$name] try $i -> $code"
+              [[ "$code" == "200" ]] && return 0
+              sleep 2
+            done
+            echo "FAIL: $name did not return 200"
+            return 1
+          }
+
+          probe "http://localhost:3000/ready" "frontend /ready" 30
+          probe "http://localhost:3000/api/ready" "frontend -> orchestrator /api/ready" 30
+
+      - name: Capture container logs
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(cat /tmp/compose_files.txt)
+          mkdir -p artifacts
+          # Collect logs per service if running
+          for svc in frontend orchestrator log_indexer; do
+            if id=$(docker compose "${FILES[@]}" ps -q "$svc" 2>/dev/null); then
+              docker logs --timestamps "$id" > "artifacts/${svc}.log" 2>&1 || true
+              docker inspect "$id" > "artifacts/${svc}.inspect.json" 2>&1 || true
+              # Grab nginx live config if frontend
+              if [[ "$svc" == "frontend" ]]; then
+                docker exec "$id" sh -lc 'nginx -T' > artifacts/nginx-T.txt 2>&1 || true
+              fi
+            fi
+          done
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-diagnostics
+          path: artifacts
+
+      - name: Tear down (keep volumes for speed)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t FILES < <(cat /tmp/compose_files.txt)
+          docker compose "${FILES[@]}" down || true
