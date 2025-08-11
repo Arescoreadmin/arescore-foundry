@@ -1,103 +1,49 @@
-# Clean docker-compose (no 'version:' key)
-x-common-env: &common-env
-  LOG_ENDPOINT: http://log_indexer:8080/log
-  LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
-  SERVICE_TOKEN: ${SERVICE_TOKEN:-dev-svc}
-
 services:
   orchestrator:
-    build:
-      context: ../orchestrator
-      dockerfile: Dockerfile
-    environment:
-      <<: *common-env
-      SERVICE_NAME: orchestrator
+    build: ./orchestrator
     ports: ["8000:8000"]
-    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8000/ready"]
-      interval: 15s
+      test: ["CMD-SHELL", "python -c \"import sys,urllib.request,socket; socket.setdefaulttimeout(2); urllib.request.urlopen('http://localhost:8000/health'); sys.exit(0)\" || exit 1"]
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 10s
-
-  log_indexer:
-    build:
-      context: ../log_indexer
-      dockerfile: Dockerfile
-    environment:
-      LOG_TOKEN: ${LOG_TOKEN:-changeme-dev}
-    ports: ["8080:8080"]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
-      interval: 15s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
+      retries: 20
+      start_period: 5s
 
   frontend:
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-    environment:
-      # Frontend reads /config.js at runtime; keep this for clarity
-      API_BASE: ${API_BASE:-/api}
+    build: ./frontend
     ports: ["3000:8080"]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8080/ready"]
-      interval: 15s
-      timeout: 3s
-      retries: 5
-      start_period: 10s
-
-  # Optional services (won't run unless profile is enabled)
-  sentinelcore:
-    profiles: ["extended"]
-    build:
-      context: ../sentinelcore
-      dockerfile: Dockerfile
-    environment:
-      <<: *common-env
-      SERVICE_NAME: sentinelcore
-      ORCHESTRATOR_URL: http://orchestrator:8000
-    ports: ["8001:8001"]
-    restart: unless-stopped
     depends_on:
       orchestrator:
         condition: service_healthy
-      log_indexer:
-        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
+      - /var/cache/nginx
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8001/ready"]
-      interval: 15s
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ready >/dev/null || wget -qO- http://localhost:8080/ready >/dev/null"]
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 15s
+      retries: 10
+      start_period: 5s
 
-  sentinelred:
-    profiles: ["extended"]
-    build:
-      context: ../sentinelred
-      dockerfile: Dockerfile
-    environment:
-      <<: *common-env
-      SERVICE_NAME: sentinelred
-      ORCHESTRATOR_URL: http://orchestrator:8000
-    ports: ["8002:8002"]
-    restart: unless-stopped
-    depends_on:
-      orchestrator:
-        condition: service_healthy
-      log_indexer:
-        condition: service_healthy
+  log_indexer:
+    build: ./log_indexer
+    ports: ["8080:8080"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    # real health is already patched into indexer.py
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:8002/ready"]
-      interval: 15s
+      test: ["CMD-SHELL", "python -c \"import sys,urllib.request,socket; socket.setdefaulttimeout(2); urllib.request.urlopen('http://localhost:8080/health'); sys.exit(0)\" || exit 1"]
+      interval: 5s
       timeout: 3s
-      retries: 5
-      start_period: 15s
-
-networks:
-  default: {}
+      retries: 20
+      start_period: 5s
