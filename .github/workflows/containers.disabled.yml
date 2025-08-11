@@ -14,12 +14,12 @@ jobs:
     strategy:
       matrix:
         svc:
-          - { name: log_indexer,        path: backend/log_indexer }
-          - { name: orchestrator,       path: backend/orchestrator }
-          - { name: sentinelcore,       path: backend/sentinelcore }
-          - { name: sentinelred,        path: backend/sentinelred }
-          - { name: mutation_engine,    path: backend/mutation_engine }
-          - { name: behavior_analytics, path: backend/behavior_analytics }
+          - { name: log_indexer,        path: log_indexer }
+          - { name: orchestrator,       path: orchestrator }
+          - { name: sentinelcore,       path: sentinelcore }
+          - { name: sentinelred,        path: sentinelred }
+          - { name: mutation_engine,    path: mutation_engine }
+          - { name: behavior_analytics, path: behavior_analytics }
           - { name: frontend,           path: frontend }
     steps:
       - uses: actions/checkout@v4
