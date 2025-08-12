@@ -1,12 +1,83 @@
-name: Smoke
+name: Compose Smoke
+
 on:
   pull_request:
-    branches: [ "*" ]
+    branches: [ main ]
+    paths:
+      - 'infra/**'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'scripts/**'
+      - '.github/workflows/smoke.yml'
   workflow_dispatch:
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   smoke:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     steps:
-      - uses: actions/checkout@v4
-      - run: bash scripts/verify_lock_in.sh
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show docker/compose versions
+        run: |
+          docker -v
+          docker compose version
+          docker info
+
+      - name: Build & start core services
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: |
+          docker compose -f infra/docker-compose.yml up -d --build
+
+      - name: Wait for endpoints (retry loop)
+        run: |
+          set -euo pipefail
+          urls=(
+            http://localhost:3000/ready
+            http://localhost:3000/api/ready
+            http://localhost:8000/health
+          )
+          for u in "${urls[@]}"; do
+            echo "Waiting for $u"
+            ok=0
+            for i in {1..60}; do
+              if curl -fsS "$u" >/dev/null; then
+                echo "OK: $u"
+                ok=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::Timed out waiting for $u"
+              docker compose -f infra/docker-compose.yml ps || true
+              docker compose -f infra/docker-compose.yml logs --tail=200 || true
+              exit 1
+            fi
+          done
+
+      - name: Assert responses
+        run: |
+          set -euo pipefail
+          test "$(curl -fsS http://localhost:3000/ready)" = '{"ready":true}'
+          test "$(curl -fsS http://localhost:3000/api/ready | jq -r .ready)" = "true"
+          test "$(curl -fsS http://localhost:8000/health | jq -r .status)" = "ok"
+
+      - name: Show ps
+        if: always()
+        run: docker compose -f infra/docker-compose.yml ps
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml logs --tail=200
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v
