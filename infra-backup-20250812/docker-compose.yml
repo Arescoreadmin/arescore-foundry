@@ -16,7 +16,7 @@ services:
         - -c
         - |
           import sys, socket, urllib.request
-          socket.setdefaulttimeout(2)
+          socket.setinfra_appnettimeout(2)
           for path in ("/_healthz", "/health"):
               try:
                   r = urllib.request.urlopen(f"http://127.0.0.1:8000{path}")
@@ -31,7 +31,15 @@ services:
       start_period: 10s
       retries: 12
     networks:
-      - infra_appnet
+      infra_appnet:
+  infra_appnet:
+    name: infra_appnet
+    driver: bridge
+    attachable: true
+    labels:
+      tier: infrastructure
+      purpose: observability
+ [infra_appnet]
 
   frontend:
     build:
@@ -51,9 +59,7 @@ services:
       retries: 3
       start_period: 10s
     networks:
-      - infra_appnet
-
-networks:
+      infra_appnet:
   infra_appnet:
     name: infra_appnet
     driver: bridge
@@ -61,3 +67,17 @@ networks:
     labels:
       tier: infrastructure
       purpose: observability
+ [infra_appnet]
+
+networks:
+      infra_appnet:
+  infra_appnet:
+    name: infra_appnet
+    driver: bridge
+    attachable: true
+    labels:
+      tier: infrastructure
+      purpose: observability
+
+  infra_appnet:
+    driver: bridge

@@ -1,0 +1,123 @@
+
+----- 1) Compose config validation -----
+✅ Compose config OK
+
+----- 2) Containers & ports -----
+NAMES                   STATUS                         PORTS
+infra-grafana-1         Up 16 seconds                  0.0.0.0:3001->3000/tcp, [::]:3001->3000/tcp
+infra-prometheus-1      Up 34 minutes                  0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp
+infra-orchestrator-1    Up 34 minutes (healthy)        0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
+infra-hardening_ai-1    Up About an hour (unhealthy)   0.0.0.0:8083->8083/tcp, [::]:8083->8083/tcp
+infra-rca_ai-1          Up About an hour (unhealthy)   0.0.0.0:8082->8082/tcp, [::]:8082->8082/tcp
+infra-metrics_tuner-1   Up About an hour               
+infra-attack_driver-1   Up About an hour (unhealthy)   0.0.0.0:8084->8084/tcp, [::]:8084->8084/tcp
+infra-observer_hub-1    Up About an hour (unhealthy)   0.0.0.0:8070->8070/tcp, [::]:8070->8070/tcp
+behavior_analytics      Up About an hour (unhealthy)   8004/tcp
+mutation_engine         Up About an hour (unhealthy)   8003/tcp
+sentinelred             Up About an hour (unhealthy)   8002/tcp
+sentinelcore            Up About an hour (unhealthy)   8001/tcp
+
+----- 3) Network alignment (should all be on infra_appnet) -----
+NAMES                   NETWORKS
+infra-grafana-1         infra_appnet
+infra-prometheus-1      infra_appnet
+infra-orchestrator-1    infra_appnet
+infra-hardening_ai-1    infra_appnet
+infra-rca_ai-1          infra_appnet
+infra-metrics_tuner-1   infra_appnet
+infra-attack_driver-1   infra_appnet
+infra-observer_hub-1    infra_appnet
+behavior_analytics      ares-app
+mutation_engine         ares-app
+sentinelred             ares-app
+sentinelcore            ares-app
+
+----- 4) Health endpoints (Observer, RCA, Hardening, Attack) -----
+✅ observer_hub /health: {"ok":true,"service":"observer_hub"}
+✅ rca_ai /health: {"ok":true}
+✅ hardening_ai /health: {"ok":true}
+✅ attack_driver /health: {"ok":true}
+
+----- 5) Observer Hub functional -----
+✅ /status: {
+  "prometheus": {
+    "status": "success",
+    "data": {
+      "startTime": "2025-08-12T17:39:07.963684559Z",
+      "CWD": "/prometheus",
+      "hostname": "87675949abb6",
+      "serverTime": "2025-08-12T18:13:51.093588481Z",
+      "reloadConfigSuccess": true,
+      "lastConfigTime": "2025-08-12T17:39:08Z",
+      "corruptionCount": 0,
+      "goroutineCount": 33,
+      "GOMAXPROCS": 16,
+      "GOMEMLIMIT": 15058144051,
+      "GOGC": "75",
+      "GODEBUG": "",
+      "storageRetention": "15d"
+    }
+  },
+  "alertmanager": {
+    "error": "[Errno -2] Name or service not known"
+  }
+}
+✅ /risks: {
+  "alerts": {
+    "error": "[Errno -2] Name or service not known"
+  }
+}
+
+----- 6) In-container DNS test (observer_hub -> prometheus/alertmanager) -----
+{
+  "prometheus": "172.21.0.8",
+  "alertmanager": "ERR:[Errno -2] Name or service not known"
+}
+🟡 In-container DNS failed for one or more services. Ensure all services share the same compose project and 'appnet' network.
+
+----- 7) Prometheus API -----
+✅ Prom status: "success"
+"2025-08-12T17:39:07.963684559Z"
+✅ Prom query(up) OK
+
+----- 8) Alertmanager API -----
+❌ Alertmanager not reachable on http://localhost:9093
+❌ Alert list FAILED
+
+----- 9) Grafana API -----
+✅ Grafana health: {
+  "database": "ok",
+  "version": "12.2.0-16868078697",
+  "commit": "49e5729fb1ef8a6fda29319e1e00bd351f321bd5"
+}
+
+----- 10) metrics_tuner output -----
+total 5
+-rw-r--r-- 1 jcosa 197610  212 Aug 12 14:14 _generated.yml
+-rw-r--r-- 1 jcosa 197610 1030 Aug 11 19:29 fastapi-recording-rules.yml
+✅ Auto-generated rules present: infra/prometheus/rules/_generated.yml
+
+----- 11) RCA and Attack functional -----
+✅ RCA diagnose OK: {
+  "alerts": {
+    "alerts": {
+      "error": "[Errno -2] Name or service not known"
+    }
+  },
+  "suggestion": {
+    "likely_cause": "Nginx header misconfig causing 502s",
+    "fix_steps": [
+      "Run scripts/patch_frontend_nginx.sh",
+      "Restart frontend"
+    ],
+    "script": "scripts/patch_frontend_nginx.sh"
+  }
+}
+✅ Attack driver OK: {
+  "mode": "recon",
+  "status": "started"
+}
+
+----- 12) Final summary -----
+Report: diagnostics/report-20250812-141349.txt
+JSON  : diagnostics/report-20250812-141349.json

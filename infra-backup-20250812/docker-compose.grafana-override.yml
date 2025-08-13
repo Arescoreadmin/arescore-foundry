@@ -1,0 +1,4 @@
+services:
+  grafana:
+    ports:
+      - "3300:3000"   # browse http://localhost:3300

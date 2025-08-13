@@ -1,0 +1,24 @@
+services:
+  orchestrator:
+    healthcheck:
+      test:
+        - "CMD"
+        - "python3"
+        - "-c"
+        - |
+          import sys, socket, urllib.request
+          socket.setdefaulttimeout(2)
+          for path in ("/_healthz", "/health"):
+              url = f"http://127.0.0.1:8000{path}"
+              try:
+                  r = urllib.request.urlopen(url)
+                  code = getattr(r, "status", getattr(r, "code", 200))
+                  if 200 <= code < 400:
+                      sys.exit(0)
+              except Exception:
+                  pass
+          sys.exit(1)
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 12

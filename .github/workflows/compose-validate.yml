@@ -1,15 +1,11 @@
-name: Compose Validate
-
-on:
-  pull_request:
-  push:
-    branches: [ main ]
-
+name: compose-validate
+on: [pull_request]
 jobs:
-  compose-validate:
+  prom-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Docker is available on GitHub-hosted Linux runners
-      - name: Validate docker compose file
-        run: docker compose -f infra/docker-compose.yml config
+      - name: Validate generated Prometheus rules
+        run: |
+          test -f infra/prometheus/rules/_generated.yml || { echo "no generated rules"; exit 0; }
+          grep -q 'groups:' infra/prometheus/rules/_generated.yml

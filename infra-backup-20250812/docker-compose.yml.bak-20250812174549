@@ -30,8 +30,7 @@ services:
       timeout: 3s
       start_period: 10s
       retries: 12
-    networks:
-      - infra_appnet
+    networks: [appnet]
 
   frontend:
     build:
@@ -50,14 +49,8 @@ services:
       timeout: 3s
       retries: 3
       start_period: 10s
-    networks:
-      - infra_appnet
+    networks: [appnet]
 
 networks:
-  infra_appnet:
-    name: infra_appnet
+  appnet:
     driver: bridge
-    attachable: true
-    labels:
-      tier: infrastructure
-      purpose: observability

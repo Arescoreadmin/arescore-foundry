@@ -1,4 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
 
+OVR="infra/docker-compose.override.yml"
+BACK="$OVR.bak.$(date +%Y%m%d-%H%M%S)"
+
+echo "Backing up $OVR -> $BACK"
+cp "$OVR" "$BACK" 2>/dev/null || true
+
+cat > "$OVR" <<'YAML'
 services:
   observer_hub:
     build: ../backend/observer_hub
@@ -15,11 +24,12 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - appnet
+    networks: [appnet]
     depends_on:
-      - prometheus
-      - alertmanager
+      prometheus:
+        condition: service_started
+      alertmanager:
+        condition: service_started
 
   rca_ai:
     build: ../backend/rca_ai
@@ -36,10 +46,10 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - appnet
+    networks: [appnet]
     depends_on:
-      - observer_hub
+      observer_hub:
+        condition: service_started
 
   hardening_ai:
     build: ../backend/hardening_ai
@@ -60,8 +70,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - appnet
+    networks: [appnet]
 
   metrics_tuner:
     build: ../backend/metrics_tuner
@@ -72,10 +81,10 @@ services:
       - ../infra/prometheus/rules:/rules
     command: ["python", "/app/cron.py"]
     restart: unless-stopped
-    networks:
-      - appnet
+    networks: [appnet]
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_started
 
   attack_driver:
     build: ../backend/attack_driver
@@ -91,9 +100,29 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - appnet
+    networks: [appnet]
+YAML
 
-networks:
-  appnet:
-    external: true
+# Normalize line endings (Windows safety)
+sed -i 's/\r$//' "$OVR"
+
+echo "Validating compose…"
+docker compose -f infra/docker-compose.yml \
+               -f infra/docker-compose.prometheus.yml \
+               -f infra/docker-compose.override.yml \
+               config --quiet || { echo "Compose validation failed"; exit 1; }
+
+echo "Restarting stack…"
+docker compose -p infra \
+  -f infra/docker-compose.yml \
+  -f infra/docker-compose.prometheus.yml \
+  -f infra/docker-compose.override.yml \
+  down
+
+docker compose -p infra \
+  -f infra/docker-compose.yml \
+  -f infra/docker-compose.prometheus.yml \
+  -f infra/docker-compose.override.yml \
+  up -d
+
+echo "OK. Tip: run ./scripts/diagnose_stack.sh to verify end-to-end."

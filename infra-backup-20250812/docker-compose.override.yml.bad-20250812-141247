@@ -1,4 +1,4 @@
-
+cat > infra/docker-compose.override.yml <<'YAML'
 services:
   observer_hub:
     build: ../backend/observer_hub
@@ -6,20 +6,15 @@ services:
       PROM_URL: ${PROM_URL:-http://prometheus:9090}
       ALERT_URL: ${ALERT_URL:-http://alertmanager:9093}
       LOG_INDEXER_URL: ${LOG_INDEXER_URL:-http://log_indexer:8081}
-    ports:
-      - "${OBSERVER_PORT:-8070}:8070"
+    ports: ["${OBSERVER_PORT:-8070}:8070"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8070/health"]
+      test: ["CMD","wget","-qO-","http://localhost:8070/health"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - appnet
-    depends_on:
-      - prometheus
-      - alertmanager
+    networks: [appnet]
 
   rca_ai:
     build: ../backend/rca_ai
@@ -27,19 +22,15 @@ services:
       LOG_INDEXER_URL: ${LOG_INDEXER_URL:-http://log_indexer:8081}
       ORCH_URL: ${ORCH_URL:-http://orchestrator:8000}
       OBSERVER_URL: ${OBSERVER_URL:-http://observer_hub:8070}
-    ports:
-      - "${RCA_PORT:-8082}:8082"
+    ports: ["${RCA_PORT:-8082}:8082"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
+      test: ["CMD","wget","-qO-","http://localhost:8082/health"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - appnet
-    depends_on:
-      - observer_hub
+    networks: [appnet]
 
   hardening_ai:
     build: ../backend/hardening_ai
@@ -51,17 +42,15 @@ services:
     volumes:
       - ../infra/nginx:/work/nginx
       - ../infra:/work/infra
-    ports:
-      - "${HARDEN_PORT:-8083}:8083"
+    ports: ["${HARDEN_PORT:-8083}:8083"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8083/health"]
+      test: ["CMD","wget","-qO-","http://localhost:8083/health"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - appnet
+    networks: [appnet]
 
   metrics_tuner:
     build: ../backend/metrics_tuner
@@ -70,30 +59,22 @@ services:
       OUTPUT_RULES: /rules/_generated.yml
     volumes:
       - ../infra/prometheus/rules:/rules
-    command: ["python", "/app/cron.py"]
+    command: ["python","/app/cron.py"]
     restart: unless-stopped
-    networks:
-      - appnet
-    depends_on:
-      - prometheus
+    networks: [appnet]
 
   attack_driver:
     build: ../backend/attack_driver
     environment:
       ORCH_URL: ${ORCH_URL:-http://orchestrator:8000}
       TARGET_NET: ${TARGET_NET:-default}
-    ports:
-      - "${ATTACK_PORT:-8084}:8084"
+    ports: ["${ATTACK_PORT:-8084}:8084"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8084/health"]
+      test: ["CMD","wget","-qO-","http://localhost:8084/health"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - appnet
-
-networks:
-  appnet:
-    external: true
+    networks: [appnet]
+YAML

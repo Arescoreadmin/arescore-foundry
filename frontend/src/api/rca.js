@@ -1,0 +1,1 @@
+export const diagnose = async () => (await fetch('/api/rca/diagnose', {method:'POST'})).json();
