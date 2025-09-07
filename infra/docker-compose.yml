@@ -1,1 +1,66 @@
-# Compose v2 syntax (no "version" key needed)x-common-env: &common_env  LOG_LEVEL: infox-health-http:  # Make sure each service exposes GET /health (200 OK). If not, add it.  test: ["CMD-SHELL", "curl -fsS http://localhost:${HEALTH_PORT:-8080}/health || wget        -qO- http://localhost:${HEALTH_PORT:-8080}/health >/dev/null 2>&1"]  interval: 10s  timeout: 2s  retries: 12  start_period: 15snetworks:  foundry_net:    external: true  obs_net:    driver: bridgevolumes:  loki-data:  grafana-data:services:  # ───────────── Your app services ─────────────  orchestrator:    environment:      <<: *common_env      SERVICE_NAME: orchestrator      HEALTH_PORT: 8080    ports:      - "8080:8080"    healthcheck:      test:        - CMD-SHELL        - wget -qO- http://localhost:${HEALTH_PORT}/health >/dev/null 2>&1 ||           curl -fsS http://localhost:${HEALTH_PORT}/health >/dev/null 2>&1 ||           exit 1      interval: 10s      timeout: 2s      retries: 12      start_period: 15s    restart: unless-stopped    networks: [foundry_net]    labels:      com.foundry.service: "orchestrator"    build:      context: ./orchestrator      dockerfile: Dockerfile    profiles:      - app  observer_hub:    environment:      <<: *common_env      SERVICE_NAME: observer_hub      HEALTH_PORT: 9092    ports:      - "9092:9092"    healthcheck:      test:        - CMD-SHELL        - wget -qO- http://localhost:${HEALTH_PORT}/health >/dev/null 2>&1 ||           curl -fsS http://localhost:${HEALTH_PORT}/health >/dev/null 2>&1 ||           exit 1      interval: 10s      timeout: 2s      retries: 12      start_period: 15s    restart: unless-stopped    networks: [foundry_net]    labels:      com.foundry.service: "observer_hub"    build:      context: ./observer_hub      dockerfile: Dockerfile    profiles:      - app  metrics_tuner:    environment:      <<: *common_env      SERVICE_NAME: metrics_tuner      HEALTH_PORT: 9102    ports:      - "9102:9102"    healthcheck:      test:        - CMD-SHELL        - wget -qO- http://localhost:${HEALTH_PORT}/health >/dev/null 2>&1 ||           curl -fsS http://localhost:${HEALTH_PORT}/health >/dev/null 2>&1 ||           exit 1      interval: 10s      timeout: 2s      retries: 12      start_period: 15s    restart: unless-stopped    networks: [foundry_net]    labels:      com.foundry.service: "metrics_tuner"  # ───────────── Observability stack (profile: observability) ─────────────    build:      context: ./metrics_tuner      dockerfile: Dockerfile    profiles:      - app  loki:    image: grafana/loki:latest    command: -config.file=/etc/loki/config.yml    volumes:      - ./loki/config.yml:/etc/loki/config.yml:ro      - loki-data:/loki    ports:      - "3100:3100"    restart: unless-stopped    networks: [obs_net, foundry_net]    profiles: ["observability"]  promtail:    image: grafana/promtail:latest    command: -config.file=/etc/promtail/config.yml    volumes:      # Docker logs + socket so promtail can discover containers      - /var/lib/docker/containers:/var/lib/docker/containers:ro      - /var/run/docker.sock:/var/run/docker.sock:ro      - ./promtail/config.yml:/etc/promtail/config.yml:ro    depends_on: [loki]    restart: unless-stopped    networks: [obs_net, foundry_net]    profiles: ["observability"]  grafana:    image: grafana/grafana:latest    environment:      GF_SECURITY_ADMIN_USER: admin      GF_SECURITY_ADMIN_PASSWORD: admin    volumes:      - grafana-data:/var/lib/grafana      - ./grafana/provisioning:/etc/grafana/provisioning    ports:      - "3000:3000"    depends_on: [loki]    restart: unless-stopped    networks: [obs_net, foundry_net]    profiles: ["observability"]  # ───────────── Blueprint guard (profile: guard) ─────────────  blueprint_guard:    image: python:3.11-slim    working_dir: /app    volumes:      - type: bind        source: ..        target: /app        consistency: delegated    command: >-      sh -lc "python -m pip install --no-input -r scripts/requirements.audit.txt 2>/dev/null      || true && python scripts/project_audit.py --strict"    networks: [foundry_net]    profiles: ["guard"]
+networks:
+  foundry_net:
+    external: true
+
+volumes:
+  pip-cache: {}
+
+services:
+  orchestrator:
+    profiles: ["app"]
+    build: { context: ../services/orchestrator, dockerfile: Dockerfile }
+    ports: ["8080:8080"]
+    environment: { HEALTH_PORT: 8080 }
+    healthcheck:
+      test: ["CMD-SHELL","wget -qO- http://localhost:$${HEALTH_PORT}/health >/dev/null 2>&1 || curl -fsS http://localhost:$${HEALTH_PORT}/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 2s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+    networks: [foundry_net]
+
+  observer_hub:
+    profiles: ["app"]
+    build: { context: ../services/observer_hub, dockerfile: Dockerfile }
+    ports: ["9092:9092"]
+    environment: { HEALTH_PORT: 9092 }
+    healthcheck:
+      test: ["CMD-SHELL","wget -qO- http://localhost:$${HEALTH_PORT}/health >/dev/null 2>&1 || curl -fsS http://localhost:$${HEALTH_PORT}/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 2s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+    networks: [foundry_net]
+
+  metrics_tuner:
+    profiles: ["app"]
+    build: { context: ../services/metrics_tuner, dockerfile: Dockerfile }
+    ports: ["9102:9102"]
+    environment: { HEALTH_PORT: 9102 }
+    healthcheck:
+      test: ["CMD-SHELL","wget -qO- http://localhost:$${HEALTH_PORT}/health >/dev/null 2>&1 || curl -fsS http://localhost:$${HEALTH_PORT}/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 2s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+    networks: [foundry_net]
+
+  blueprint_guard:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - type: bind
+        source: ..
+        target: /app
+        consistency: delegated
+      - pip-cache:/root/.cache/pip
+    command: >
+      sh -lc "
+        python -m pip install --no-input -r scripts/requirements.audit.txt 2>/dev/null || true &&
+        python scripts/project_audit.py --strict
+      "
+    profiles: ["guard"]
+    networks: [foundry_net]
