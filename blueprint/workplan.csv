@@ -1,0 +1,4 @@
+id,epic,title,desc,status,points,owner,due,tags,day
+FND-001,Blueprint,Wire guardrails,Add blueprint/, TOML, pre-commit, CI, todo,2,me,2025-09-08,blueprint,2025-09-08
+FND-002,Healthchecks,Expose /health,Implement GET /health in 3 services, todo,3,me,2025-09-08,health,2025-09-08
+FND-003,Obs,Start loki/promtail/grafana,Bring up observability profile, todo,2,me,2025-09-08,observability,2025-09-08

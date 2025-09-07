@@ -1,0 +1,5 @@
+[blueprint]
+path = "blueprint"
+lock = "blueprint.lock"
+enforce = true
+drift_budget = 0

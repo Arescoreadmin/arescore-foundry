@@ -1,14 +1,15 @@
+
 FROM python:3.11-slim
-
-RUN useradd -m appuser
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+RUN useradd -u 10001 -m appuser
 WORKDIR /app
-
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY ./app ./app
-
+RUN pip install -U pip && pip install --no-cache-dir -r requirements.txt
+# Expect code under app/
+COPY app ./app
+RUN chown -R appuser:appuser /app
 USER appuser
-
-EXPOSE 8002
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
+EXPOSE 8000
+HEALTHCHECK --interval=20s --timeout=3s --retries=3 \
+  CMD ["python","-c","import urllib.request as u; u.urlopen(\"http://127.0.0.1:8000/ready\", timeout=2).read(); print(\"ok\")"]
+CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]

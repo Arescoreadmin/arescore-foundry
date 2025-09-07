@@ -1,0 +1,18 @@
+name: Blueprint Guard
+on: [push, pull_request]
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: python scripts/project_audit.py --strict
+      - name: Fail on drift
+        run: |
+          test -f reports/drift.md || { echo "missing drift report"; exit 1; }
+          if [ -s reports/drift.md ]; then
+            echo "Drift detected:"
+            cat reports/drift.md
+            exit 1
+          fi

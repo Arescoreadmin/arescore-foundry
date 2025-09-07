@@ -1,0 +1,62 @@
+name: Compose Smoke
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show docker/compose versions
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Build & start 3 core services
+        run: |
+          docker compose -f infra/docker-compose.yml up -d --build
+
+      - name: Wait for endpoints (retry loop)
+        run: |
+          bash -euxo pipefail -c '
+          urls=(
+            http://localhost:3000/ready
+            http://localhost:3000/api/ready
+            http://localhost:8000/health
+            http://localhost:8080/health
+          )
+          for u in "${urls[@]}"; do
+            echo "Waiting for $u"
+            for i in {1..60}; do
+              if curl -fsS "$u" >/dev/null; then
+                echo "OK: $u"
+                break
+              fi
+              sleep 2
+            done
+          done
+          '
+
+      - name: Assert responses
+        run: |
+          set -euo pipefail
+          test "$(curl -fsS http://localhost:3000/ready)" = '{"ready":true}'
+          test "$(curl -fsS http://localhost:3000/api/ready | jq -r .ready)" = "true"
+          test "$(curl -fsS http://localhost:8000/health | jq -r .status)" = "ok"
+          test "$(curl -fsS http://localhost:8080/health | jq -r .status)" = "ok"
+
+      - name: Show ps
+        if: always()
+        run: docker compose -f infra/docker-compose.yml ps
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -f infra/docker-compose.yml logs --tail=200
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f infra/docker-compose.yml down -v

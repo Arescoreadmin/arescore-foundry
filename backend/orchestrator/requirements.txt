@@ -1,2 +1,4 @@
 fastapi
 uvicorn[standard]
+prometheus-fastapi-instrumentator>=6.1.0
+

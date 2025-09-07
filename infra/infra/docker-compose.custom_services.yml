@@ -1,0 +1,25 @@
+services:
+  orchestrator:
+    image: your-orchestrator-image
+    ports:
+      - "8080:8080"
+    networks:
+      - foundry_net
+
+  observer_hub:
+    image: your-observer-image
+    ports:
+      - "9092:9092"
+    networks:
+      - foundry_net
+
+  metrics_tuner:
+    image: your-metrics-tuner-image
+    ports:
+      - "9102:9102"
+    networks:
+      - foundry_net
+
+networks:
+  foundry_net:
+    external: true

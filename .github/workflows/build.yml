@@ -1,0 +1,41 @@
+name: Build & Push Containers
+
+on:
+  push:
+    branches: [ main, codex/healthchecks-and-deps ]
+  pull_request:
+    branches: [ main, codex/healthchecks-and-deps ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: frontend,          path: frontend }
+          - { name: orchestrator,       path: orchestrator }
+          - { name: log_indexer,        path: log_indexer }
+          - { name: mutation_engine,    path: mutation_engine }
+          - { name: sentinelcore,       path: sentinelcore }
+          - { name: sentinelred,        path: sentinelred }
+          - { name: behavior_analytics, path: behavior_analytics }
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check context exists
+        id: ctx
+        shell: bash
+        run: |
+          if [ -f "${{ matrix.path }}/Dockerfile" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "Context ok: ${{ matrix.path }}"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping ${{ matrix.name }} — no Dockerfile at ${{ matrix.path }}/Dockerfile"
+          fi
+
+      - name: Log in to GHCR (only on main)
+        if: steps.ctx.outputs.ok == 'true' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3

@@ -1,0 +1,21 @@
+version: 1
+project: arescore-foundry
+files:
+  required:
+  - README.md
+  - infra/docker-compose.yml
+  - scripts/project_audit.py
+  forbidden_globs:
+  - '**/*.pem'
+  - '**/.env'
+  - '**/*secret*'
+modules: []
+boundaries:
+  disallow_imports: []
+shared_code_root: libs/
+artifacts:
+  reports:
+  - reports/tree.txt
+  - reports/inventory.json
+  - reports/todos.md
+  - reports/drift.md

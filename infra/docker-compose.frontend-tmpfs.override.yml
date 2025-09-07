@@ -1,0 +1,10 @@
+services:
+  frontend:
+    tmpfs:
+    networks:
+      - foundry_net
+      - /tmp
+
+networks:
+  foundry_net:
+    external: true

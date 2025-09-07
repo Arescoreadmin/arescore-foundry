@@ -1,0 +1,54 @@
+name: Health & Security
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  smoke-and-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compose build
+        run: docker compose -f infra/docker-compose.yml build
+
+      - name: Bring up stack
+        run: docker compose -f infra/docker-compose.yml up -d
+
+      - name: Wait for orchestrator healthy
+        shell: bash
+        run: |
+          CID=$(docker compose -f infra/docker-compose.yml ps -q orchestrator)
+          for i in {1..60}; do
+            s=$(docker inspect --format '{{.State.Health.Status}}' "$CID" || echo "unknown")
+            [ "$s" = "healthy" ] && exit 0
+            [ "$s" = "unhealthy" ] && { docker logs --tail=200 "$CID"; exit 1; }
+            sleep 2
+          done
+          echo "timeout waiting for healthy"; docker logs --tail=200 "$CID"; exit 1
+
+      - name: Probe endpoints
+        run: |
+          curl -fS http://localhost:8000/health
+          curl -fS http://localhost:8000/readyz
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@v0.2.2
+
+      - name: Scan orchestrator image
+        continue-on-error: false
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress infra-orchestrator:latest
+
+      - name: Scan frontend image
+        continue-on-error: false
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL --no-progress infra-frontend:latest

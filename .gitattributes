@@ -1,0 +1,18 @@
+*.sh text eol=lf
+*.bash text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*text=auto eol=lf
+*.py text eol=lf
+Dockerfile* text eol=lf
+
+# enforce LF on code & configs
+*.sh      text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.conf    text eol=lf
+*.py      text eol=lf
+Dockerfile text eol=lf
+scripts/verify_lock_in.sh text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf

@@ -1,0 +1,17 @@
+{}
+{ "observer_hub_health": {"ok":true,"service":"observer_hub"} }
+{ "rca_ai_health": {"ok":true} }
+{ "hardening_ai_health": {"ok":true} }
+{ "attack_driver_health": {"ok":true} }
+{ "observer_status": {"prometheus":{"status":"success","data":{"startTime":"2025-08-12T18:55:05.080155097Z","CWD":"/prometheus","hostname":"3397c0a4158f","serverTime":"2025-08-12T20:45:25.503565324Z","reloadConfigSuccess":true,"lastConfigTime":"2025-08-12T18:55:05Z","corruptionCount":0,"goroutineCount":33,"GOMAXPROCS":16,"GOMEMLIMIT":15058144051,"GOGC":"75","GODEBUG":"","storageRetention":"15d"}},"alertmanager":{"error":"[Errno -2] Name or service not known"}} }
+{ "observer_risks": {"alerts":{"error":"[Errno -2] Name or service not known"}} }
+{ "dns_from_observer": {"prometheus": "172.21.0.6", "alertmanager": "ERR:[Errno -2] Name or service not known", "ALERT_URL": "http://alertmanager:9093"} }
+{ "prom_runtimeinfo": {"status":"success","data":{"startTime":"2025-08-12T18:55:05.080155097Z","CWD":"/prometheus","hostname":"3397c0a4158f","serverTime":"2025-08-12T20:45:37.052955591Z","reloadConfigSuccess":true,"lastConfigTime":"2025-08-12T18:55:05Z","corruptionCount":0,"goroutineCount":33,"GOMAXPROCS":16,"GOMEMLIMIT":15058144051,"GOGC":"75","GODEBUG":"","storageRetention":"15d"}} }
+{ "prom_query_up": {"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"up","instance":"orchestrator:8000","job":"orchestrator"},"value":[1755031537.131,"1"]}]}} }
+{ "grafana_health": {
+  "database": "ok",
+  "version": "12.2.0-16868078697",
+  "commit": "49e5729fb1ef8a6fda29319e1e00bd351f321bd5"
+} }
+{ "rca_diagnose": {"alerts":{"alerts":{"error":"[Errno -2] Name or service not known"}},"suggestion":{"likely_cause":"Nginx header misconfig causing 502s","fix_steps":["Run scripts/patch_frontend_nginx.sh","Restart frontend"],"script":"scripts/patch_frontend_nginx.sh"}} }
+{ "attack_run": {"mode":"recon","status":"started"} }

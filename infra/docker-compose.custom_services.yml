@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  orchestrator:
+    build:
+      context: ../orchestrator
+      dockerfile: Dockerfile
+    container_name: infra-orchestrator-1
+    ports:
+      - "8080:8080"
+    environment:
+      - SERVICE_NAME=orchestrator
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

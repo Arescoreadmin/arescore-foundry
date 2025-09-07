@@ -1,0 +1,16 @@
+checks:
+  tree:
+    allowed_paths: [infra/*, blueprint/*, scripts/*, docs/*, reports/*, services/*, libs/*]
+  health:
+    require_endpoints: true
+  logging:
+    required_stack: loki
+    files: [infra/promtail/config.yml, infra/loki/config.yml]
+  ci:
+    require_job: blueprint-guard
+  security:
+    secret_scan: true
+policy:
+  fail_on_drift: true
+  enforce_in_precommit: true
+  enforce_in_ci: true

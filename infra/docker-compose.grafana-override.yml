@@ -1,0 +1,10 @@
+services:
+  grafana:
+    ports:
+    networks:
+      - foundry_net
+      - "3300:3000"   # browse http://localhost:3300
+
+networks:
+  foundry_net:
+    external: true

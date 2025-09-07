@@ -1,0 +1,11 @@
+name: compose-validate
+on: [pull_request]
+jobs:
+  prom-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate generated Prometheus rules
+        run: |
+          test -f infra/prometheus/rules/_generated.yml || { echo "no generated rules"; exit 0; }
+          grep -q 'groups:' infra/prometheus/rules/_generated.yml

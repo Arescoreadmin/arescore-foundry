@@ -3,10 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sentinel Foundry</title>
+    <title>Sentinel Forge</title>
+    <!-- Vite serves /public/config.js as /config.js in dist -->
+    <script src="/config.js"></script>
   </head>
   <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <div id="root"></div>
+    <!-- entry file (adjust if you use TSX) -->
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

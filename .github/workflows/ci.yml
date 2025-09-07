@@ -1,0 +1,31 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+jobs:
+  build-test-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - name: Install deps
+        run: |
+          pip install -U pip wheel pytest mypy ruff
+          pip install -r orchestrator/requirements.txt || true
+      - name: Lint & typecheck
+        run: |
+          ruff check .
+          mypy --install-types --non-interactive || true
+      - name: Unit tests
+        run: pytest -q
+      - name: Build images
+        run: docker build -f orchestrator/Dockerfile .
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: 'localbuild:latest'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
