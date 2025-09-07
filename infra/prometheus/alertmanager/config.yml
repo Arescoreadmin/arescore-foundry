@@ -1,8 +1,1 @@
-global:
-  resolve_timeout: 5m
-
-route:
-  receiver: "default"
-
-receivers:
-  - name: "default"
+global:  resolve_timeout: 5mroute:  receiver: "default"receivers:  - name: "default"

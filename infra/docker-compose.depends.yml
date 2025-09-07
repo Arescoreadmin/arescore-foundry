@@ -1,13 +1,1 @@
-services:
-  frontend:
-    depends_on:
-    networks:
-      - foundry_net
-      orchestrator:
-        condition: service_healthy
-    networks:
-      - foundry_net
-
-networks:
-  foundry_net:
-    external: true
+services:  frontend:    depends_on:    networks:      - foundry_net      orchestrator:        condition: service_healthy    networks:      - foundry_netnetworks:  foundry_net:    external: true

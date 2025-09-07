@@ -1,10 +1,1 @@
-groups:
-- name: autotune
-  rules:
-  - alert: HighHTTPRate
-    annotations:
-      summary: Auto-tuned high HTTP rate
-    expr: rate(http_requests_total[5m]) > 10.00
-    for: 2m
-    labels:
-      severity: warning
+groups:- name: autotune  rules:  - alert: HighHTTPRate    annotations:      summary: Auto-tuned high HTTP rate    expr: rate(http_requests_total[5m]) > 10.00    for: 2m    labels:      severity: warning

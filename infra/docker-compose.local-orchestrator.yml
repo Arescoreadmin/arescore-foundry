@@ -1,13 +1,1 @@
-services:
-  orchestrator:
-    build:
-    networks:
-      - foundry_net
-      context: ../orchestrator
-      dockerfile: Dockerfile
-    image: local/ares-orchestrator:dev
-    command: ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]
-
-networks:
-  foundry_net:
-    external: true
+services:  orchestrator:    build:    networks:      - foundry_net      context: ../orchestrator      dockerfile: Dockerfile    image: local/ares-orchestrator:dev    command: ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000"]networks:  foundry_net:    external: true

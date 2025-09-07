@@ -1,13 +1,1 @@
-services:
-  frontend:
-    volumes:
-    networks:
-      - foundry_net
-      - type: bind
-        source: ../frontend/nginx.conf
-        target: /etc/nginx/conf.d/default.conf
-        read_only: true
-
-networks:
-  foundry_net:
-    external: true
+services:  frontend:    volumes:    networks:      - foundry_net      - type: bind        source: ../frontend/nginx.conf        target: /etc/nginx/conf.d/default.conf        read_only: truenetworks:  foundry_net:    external: true
