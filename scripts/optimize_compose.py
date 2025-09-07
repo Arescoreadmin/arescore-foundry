@@ -2,11 +2,13 @@
 
 # Python script starts here
 
+# scripts/optimize_compose.py
 APP = {
-    "orchestrator":  {"context": "./orchestrator",  "port": 8080},   # adjust if needed
-    "observer_hub":  {"context": "./observer_hub",  "port": 9092},
-    "metrics_tuner": {"context": "./metrics_tuner", "port": 9102},
+    "orchestrator":  {"context": "../services/orchestrator",  "port": 8080},
+    "observer_hub":  {"context": "../services/observer_hub",  "port": 9092},
+    "metrics_tuner": {"context": "../services/metrics_tuner", "port": 9102},
 }
+
 
 def update_service_healthcheck(svc, port):
     env = svc.get("environment") or {}
