@@ -1,22 +1,22 @@
-infra/.env
-# logs
-**/*.log
-# node
-frontend/node_modules
-frontend/dist
-# python
-**/__pycache__/
-**/*.py[cod]
-# zips / local artifacts
-*.zip
-infra/.env
-*.zip
-frontend/node_modules
-frontend/dist
-**/__pycache__/
-**/*.py[cod]
+# build output
+dist/
+build/
+node_modules/
+*.log
 
-# local env files
-.env
-infra/.env
-*.env.local
+# codegen and local sessions
+sessions/
+patches/
+Resources/
+
+# backups and temp
+*.bak.*
+*.bak
+*.patch
+.DS_Store
+Thumbs.db
+
+# local scripts you don’t want in main
+scripts/
+templates/
+docs/
