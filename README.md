@@ -4,7 +4,7 @@
 
 1. Copy `.env.example` to `.env` and set your API keys.
 
-2. Build and run all containers:
+1. Build and run all containers:
 
 ```bash
 docker-compose up --build

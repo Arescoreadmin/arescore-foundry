@@ -135,11 +135,12 @@ services:
     ports: ["3000:8080"]
     networks: [foundry_net]
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/health >/dev/null || exit 1"]  # requires curl in image
-      interval: 30s        # was 10s
+      # Patched: wget-based, fast cadence
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 3s
       timeout: 2s
-      retries: 3
-      start_period: 10s
+      retries: 10
+      start_period: 3s
     restart: unless-stopped
 
   # ---------- Frontend (DEV profile) ----------
