@@ -1,17 +1,45 @@
 name: ci
 on: [push, pull_request]
+
 jobs:
   lint-and-smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Lint line endings and Makefile tabs
         run: |
           if git grep -I $'\r' -- .; then
             echo "CRLF detected"; exit 1; fi
           if grep -n '^[[:space:]]\+[[:alnum:]$_({]' Makefile | grep -vq $'\t'; then
             echo "Makefile recipes need TABs"; exit 1; fi
+
+      - name: Prepare env files for CI
+        run: |
+          # root .env for frontend defaults
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            echo 'VITE_API_BASE=http://localhost:8000' > .env
+          fi
+          # infra env from example (you committed infra/.env.example)
+          if [ -f infra/.env.example ]; then
+            cp infra/.env.example infra/.env
+          else
+            mkdir -p infra && : > infra/.env
+          fi
+          # fail fast if compose still references something missing
+          docker compose -f infra/docker-compose.yml config >/dev/null
+
       - name: Smoke
         run: |
           make up
           make smoke
+
+      - name: Tear down
+        if: always()
+        run: |
+          # ensure envs exist even if previous step bailed
+          [ -f infra/.env ] || (mkdir -p infra && : > infra/.env)
+          [ -f .env ] || : > .env
+          make down || docker compose -f infra/docker-compose.yml down -v || true
