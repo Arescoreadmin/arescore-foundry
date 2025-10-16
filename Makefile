@@ -48,3 +48,10 @@ smoke:
 
 rebuild:
 	docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build
+
+.PHONY: smoke
+smoke:
+	@set -e; \
+	curl -fsS --retry 12 --retry-all-errors --retry-delay 1 http://localhost:8000/health >/dev/null; \
+	curl -fsS --retry 12 --retry-all-errors --retry-delay 1 http://localhost:3000/health >/dev/null; \
+	echo "smoke: ok"
