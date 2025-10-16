@@ -1,2 +1,18 @@
 * text=auto
-Makefile text eol=lf
+
+# Hard rules for key files
+Makefile            text eol=lf
+*.sh                text eol=lf
+*.bash              text eol=lf
+*.py                text eol=lf
+*.yml               text eol=lf
+*.yaml              text eol=lf
+Dockerfile          text eol=lf
+*.rego              text eol=lf
+
+# Frontend assets treated as binary so Git doesn’t touch them
+*.ico               binary
+*.png               binary
+*.jpg               binary
+*.jpeg              binary
+*.svg               text eol=lf
