@@ -135,11 +135,12 @@ services:
     ports: ["3000:8080"]
     networks: [foundry_net]
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 15s
+      # Patched: wget-based, fast cadence
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+      start_period: 3s
     restart: unless-stopped
 
   # ---------- Frontend (DEV profile) ----------

@@ -5,7 +5,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build",
+    "down": "docker compose -f infra/docker-compose.yml down --remove-orphans",
+    "logs": "docker compose -f infra/docker-compose.yml logs -f",
+    "ps": "docker compose -f infra/docker-compose.yml ps",
+    "rebuild-frontend": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build frontend"
   },
   "dependencies": {
     "react": "^18.0.0",
@@ -14,5 +19,6 @@
   "devDependencies": {
     "vite": "^4.0.0",
     "@vitejs/plugin-react": "^4.0.0"
+  
   }
 }

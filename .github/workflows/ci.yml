@@ -1,0 +1,50 @@
+cat > .github/workflows/ci.yml <<'YML'
+name: ci
+on: [push, pull_request]
+
+jobs:
+  lint-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint line endings and Makefile tabs
+        run: |
+          if git grep -I $'\r' -- .; then
+            echo "CRLF detected"; exit 1; fi
+          if grep -n '^[[:space:]]\+[[:alnum:]$_({]' Makefile | grep -vq $'\t'; then
+            echo "Makefile recipes need TABs"; exit 1; fi
+
+      - name: Prepare env files for CI
+        run: |
+          # root .env for frontend defaults
+          if [ -f .env.example ]; then
+            cp .env.example .env
+          else
+            echo 'VITE_API_BASE=http://localhost:8000' > .env
+          fi
+          # infra env from example (tracked)
+          if [ -f infra/.env.example ]; then
+            cp infra/.env.example infra/.env
+          else
+            mkdir -p infra && : > infra/.env
+          fi
+          # fail fast if compose still references a missing file/var
+          docker compose -f infra/docker-compose.yml config >/dev/null
+
+      - name: Smoke
+        run: |
+          make up
+          make smoke
+
+      - name: Tear down
+        if: always()
+        run: |
+          [ -f infra/.env ] || (mkdir -p infra && : > infra/.env)
+          [ -f .env ] || : > .env
+          make down || docker compose -f infra/docker-compose.yml down -v || true
+YML
+
+git add .github/workflows/ci.yml
+git commit -m "ci: fix typos; stub envs + resilient teardown"
+git push

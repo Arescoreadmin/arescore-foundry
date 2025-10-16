@@ -1,17 +1,24 @@
+# build output
+dist/
+build/
+node_modules/
+*.log
+
+# env files and secrets
+.env
 infra/.env
-# logs
-**/*.log
-# node
-frontend/node_modules
-frontend/dist
-# python
-**/__pycache__/
-**/*.py[cod]
-# zips / local artifacts
-*.zip
-infra/.env
-*.zip
-frontend/node_modules
-frontend/dist
-**/__pycache__/
-**/*.py[cod]
+
+# codegen and local sessions
+sessions/
+patches/
+Resources/
+
+# backups and temp
+*.bak.*
+*.bak
+*.patch
+.DS_Store
+Thumbs.db
+
+# optional: ignore the unused PNG favicon since .ico exists
+frontend/public/favicon.ico.png
