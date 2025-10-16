@@ -1,0 +1,10 @@
+Given the file at {{PATH}}:
+
+---8<--- CURRENT FILE START
+{{FILE_CONTENT}}
+---8<--- CURRENT FILE END
+
+Make these changes:
+{{CHANGES}}
+
+Return a unified diff (git patch format) for exactly {{PATH}} and nothing else.
