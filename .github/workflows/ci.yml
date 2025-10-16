@@ -1,0 +1,17 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  lint-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint line endings and Makefile tabs
+        run: |
+          if git grep -I $'\r' -- .; then
+            echo "CRLF detected"; exit 1; fi
+          if grep -n '^[[:space:]]\+[[:alnum:]$_({]' Makefile | grep -vq $'\t'; then
+            echo "Makefile recipes need TABs"; exit 1; fi
+      - name: Smoke
+        run: |
+          make up
+          make smoke
