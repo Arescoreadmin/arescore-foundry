@@ -1,4 +1,3 @@
-# .github/workflows/compose-build.yml
 name: Build & Push Containers
 on:
   pull_request:
