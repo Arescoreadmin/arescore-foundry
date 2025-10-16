@@ -4,6 +4,10 @@ build/
 node_modules/
 *.log
 
+# env files and secrets
+.env
+infra/.env
+
 # codegen and local sessions
 sessions/
 patches/
@@ -16,7 +20,5 @@ Resources/
 .DS_Store
 Thumbs.db
 
-# local scripts you don’t want in main
-scripts/
-templates/
-docs/
+# optional: ignore the unused PNG favicon since .ico exists
+frontend/public/favicon.ico.png
