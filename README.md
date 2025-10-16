@@ -27,3 +27,13 @@ docker-compose up --build
 - All services expose `/health` endpoint for health checks.
 - Environment variables control API keys and configs.
 - Use non-root users in Dockerfiles for security.
+
+### Local run
+
+1. `cp infra/.env.example infra/.env` and adjust values.
+2. `make up` to build & start everything.
+3. Health:
+   - API: http://localhost:8000/health
+   - Frontend: http://localhost:3000/health
+4. Rebuild just the UI after env/UI changes: `make rebuild-frontend`
+5. Stop/clean: `make down`
