@@ -14,16 +14,16 @@ FE_HEALTH  ?= http://localhost:3000/health
 CURLQ = curl -fsS --retry 15 --retry-all-errors --retry-delay 1
 
 up:
-	$(COMPOSE) up -d --build --wait
+	docker compose -f infra/docker-compose.yml up -d --build --wait
 
 down:
-	$(COMPOSE) down -v
+	docker compose -f infra/docker-compose.yml down -v
 
 logs:
-	$(COMPOSE) logs --no-log-prefix --tail=200
+	docker compose -f infra/docker-compose.yml logs --no-log-prefix --tail=200
 
 ps:
-	$(COMPOSE) ps
+	docker compose -f infra/docker-compose.yml ps
 
 rebuild:
 	$(COMPOSE) build --no-cache
@@ -36,11 +36,10 @@ nuke:
 # single source of truth; DO NOT define smoke anywhere else
 smoke:
 	@printf "waiting for API...\n"; \
-	$(CURLQ) $(API_HEALTH) >/dev/null
+	  curl -fsS --retry 15 --retry-all-errors --retry-delay 1 http://localhost:8000/health >/dev/null
 	@printf "waiting for frontend...\n"; \
-	$(CURLQ) $(FE_HEALTH) >/dev/null
+	  curl -fsS --retry 15 --retry-all-errors --retry-delay 1 http://localhost:3000/health >/dev/null
 	@echo "smoke: ok"
-
 # sanity check to help humans find accidental duplicate targets
 check:
 	@printf "Scanning Makefile for duplicate target names...\n"; \
