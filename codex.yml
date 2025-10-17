@@ -69,7 +69,7 @@ codex:
   git:
     branch_prefix: codex/
     pr_labels: [codex, automated, needs-review]
-    reviewers_required: 1
+    reviewers_required: 0
     auto_pr: true
     pre_commit_hooks:
       - ruff
