@@ -1,0 +1,139 @@
+# from repo root
+cat > codex.yml <<'YML'
+# =====================================================================
+# Codex Guardrails & Concurrency Policy
+# =====================================================================
+# This file defines hard rules for automated code generation,
+# parallel task execution, file locking, and PR gating.
+# Include it in your project root so your codex orchestrator,
+# CI, or agent runners can read it for execution limits.
+
+codex:
+  # ---------------------------------------------------------------
+  # 1. Global Worker Limits
+  # ---------------------------------------------------------------
+  workers:
+    global_max: 8
+    per_repo_max: 5
+    per_module_max: 2
+
+  # ---------------------------------------------------------------
+  # 2. Task Boundaries & Quality
+  # ---------------------------------------------------------------
+  tasks:
+    max_loc_per_task: 300
+    single_writer_per_file: true
+    require_spec_in_prompt: true
+    atomic_scope: true
+    context_injection:
+      include:
+        - target_file
+        - nearest_interfaces
+        - module_spec
+        - acceptance_criteria
+      exclude:
+        - entire_repo
+        - vendor/
+        - node_modules/
+        - venv/
+        - .git/
+
+  # ---------------------------------------------------------------
+  # 3. Queue & Scheduling
+  # ---------------------------------------------------------------
+  queue:
+    type: redis
+    dedupe_window_sec: 600
+    retry_backoff: [10, 30, 120]
+    planner_mode: dag
+    priority_weights:
+      bugfix: 3
+      feature: 2
+      refactor: 1
+    fallback_policy: skip-if-lock
+
+  # ---------------------------------------------------------------
+  # 4. File Locking
+  # ---------------------------------------------------------------
+  locks:
+    backend: redis
+    key_pattern: lock:file:{abs_path}
+    ttl_sec: 300
+    heartbeat_sec: 15
+    enforce_single_writer: true
+    on_timeout: cancel-task
+
+  # ---------------------------------------------------------------
+  # 5. Git & PR Workflow
+  # ---------------------------------------------------------------
+  git:
+    branch_prefix: codex/
+    pr_labels: [codex, automated, needs-review]
+    reviewers_required: 1
+    auto_pr: true
+    pre_commit_hooks:
+      - ruff
+      - mypy
+      - eslint
+      - "nginx -t"
+    ci_required: [unit, smoke]
+    canary_branching:
+      batch_size: 3
+      require_full_ci_pass: true
+    rollback:
+      auto_revert_on_fail: true
+
+  # ---------------------------------------------------------------
+  # 6. Concurrency Calculation Rules
+  # ---------------------------------------------------------------
+  concurrency_formula:
+    rate_limit_gate: "floor((RPM * success_ratio) / avg_calls_per_task)"
+    compute_gate: "2 * physical_cores"
+    repo_gate: "min(8, max(2, #maintainers))"
+    flake_gate: "if test_runtime_min > 6 then cap 4"
+    note: "Use smallest value across all gates to set active worker count."
+
+  # ---------------------------------------------------------------
+  # 7. Scaling Conditions
+  # ---------------------------------------------------------------
+  scale_up_conditions:
+    - "Test suite wall clock < 2 min"
+    - "Merge conflict rate < 2% over last week"
+    - "Median review latency < 4h"
+    - "Error budget within SLA"
+    action: "Increase workers by +2 per repo, re-evaluate after 72h"
+
+  # ---------------------------------------------------------------
+  # 8. Guardrail Enforcement
+  # ---------------------------------------------------------------
+  guardrails:
+    require_specs: true
+    idempotent_tasks: true
+    fail_fast_on_conflict: true
+    dry_run_mode: optional
+    verbose_logging: true
+    audit_trail:
+      enabled: true
+      include: [timestamp, task_id, file, status, hash]
+      export_format: jsonl
+
+  # ---------------------------------------------------------------
+  # 9. Safe Defaults
+  # ---------------------------------------------------------------
+  safe_defaults:
+    retry_on_failures: 2
+    lint_timeout_sec: 60
+    test_timeout_sec: 600
+    branch_naming_convention: "codex/{timestamp}-{slug}"
+    cancel_on_duplicate_task: true
+    require_ci_pass_before_merge: true
+    max_parallel_prs: 5
+
+# =====================================================================
+# Notes:
+# - Never exceed 1 writer per file; use locks.
+# - Never run >8 concurrent codex workers per repo.
+# - PRs >300 LOC are auto-rejected by CI.
+# - Canary branch merges 3 PRs → full CI → main.
+# =====================================================================
+YML
