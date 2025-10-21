@@ -4,154 +4,156 @@ name: arescore-foundry
 networks:
   foundry_net: {}
 
+# DRY-ish defaults you can reuse later if you want to expand
+x-service-defaults: &svc_defaults
+  env_file: [.env]
+  networks: [foundry_net]
+  restart: unless-stopped
+
 services:
   # ---------- Core Services ----------
   log_indexer:
+    <<: *svc_defaults
     build:
       context: ../backend/log_indexer
     container_name: log_indexer
-    env_file: [.env]
     ports: ["9000:9000"]
-    networks: [foundry_net]
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:9000/health'); sys.exit(0)\" || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 15s
-    restart: unless-stopped
 
   orchestrator:
+    <<: *svc_defaults
     build:
       context: ../backend/orchestrator
     container_name: orchestrator
-    env_file: [.env]
     depends_on:
       log_indexer:
         condition: service_healthy
     ports: ["8000:8000"]
-    networks: [foundry_net]
+    environment:
+      - PYTHONPATH=/app:/app/app
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/health'); sys.exit(0)\" || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 15s
-    restart: unless-stopped
 
+  # SentinelCore, merged and prioritized; single source of truth lives here.
   sentinelcore:
+    <<: *svc_defaults
+    # Using the more explicit Dockerfile path to match your smaller snippet,
+    # while keeping paths consistent with the rest of the stack.
     build:
-      context: ../backend/sentinelcore
+      context: ..
+      dockerfile: backend/sentinelcore/Dockerfile
     container_name: sentinelcore
-    env_file: [.env]
     depends_on:
       log_indexer:
         condition: service_healthy
       orchestrator:
         condition: service_healthy
     ports: ["8001:8001"]
-    networks: [foundry_net]
+    environment:
+      - PYTHONPATH=/app:/app/app
+      - RAG_CACHE_URL=sqlite:///data/rag_cache.sqlite3
+      - RAG_QUERY_TTL_SECONDS=90
+    volumes:
+      - ./backend/sentinelcore/data:/app/data
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8001/health'); sys.exit(0)\" || exit 1"]
+      test: ["CMD", "python", "-c", "import json,sys,urllib.request; u='http://localhost:8001/health';\ntry:\n r=urllib.request.urlopen(u,timeout=2); d=json.loads(r.read() or b'{}'); sys.exit(0 if d.get('ok') else 1)\nexcept Exception:\n sys.exit(1)"]
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 15s
-    restart: unless-stopped
+      start_period: 10s
 
   sentinelred:
+    <<: *svc_defaults
     build:
       context: ../backend/sentinelred
     container_name: sentinelred
-    env_file: [.env]
     depends_on:
       log_indexer:
         condition: service_healthy
       orchestrator:
         condition: service_healthy
     ports: ["8002:8002"]
-    networks: [foundry_net]
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8002/health'); sys.exit(0)\" || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 15s
-    restart: unless-stopped
 
   mutation_engine:
+    <<: *svc_defaults
     build:
       context: ../backend/mutation_engine
     container_name: mutation_engine
-    env_file: [.env]
     depends_on:
       log_indexer:
         condition: service_healthy
       orchestrator:
         condition: service_healthy
     ports: ["8003:8003"]
-    networks: [foundry_net]
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8003/health'); sys.exit(0)\" || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 15s
-    restart: unless-stopped
 
   behavior_analytics:
+    <<: *svc_defaults
     build:
       context: ../backend/behavior_analytics
     container_name: behavior_analytics
-    env_file: [.env]
     depends_on:
       log_indexer:
         condition: service_healthy
       orchestrator:
         condition: service_healthy
     ports: ["8004:8004"]
-    networks: [foundry_net]
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8004/health'); sys.exit(0)\" || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 15s
-    restart: unless-stopped
 
   # ---------- Frontend (PROD by default) ----------
   frontend:
+    <<: *svc_defaults
     build:
       context: ../frontend
       args:
         # forwarded to Vite at build-time; set in .env as VITE_API_BASE=http://orchestrator:8000
         VITE_API_BASE: ${VITE_API_BASE}
     container_name: frontend
-    env_file: [.env]
     depends_on:
       orchestrator:
         condition: service_healthy
     # Nginx (unprivileged) serves on 8080 internally, we expose it on 3000 outside
     ports: ["3000:8080"]
-    networks: [foundry_net]
     healthcheck:
-      # Patched: wget-based, fast cadence
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 3s
       timeout: 2s
       retries: 10
       start_period: 3s
-    restart: unless-stopped
 
   # ---------- Frontend (DEV profile) ----------
   frontend_dev:
+    <<: *svc_defaults
     build:
       context: ../frontend
     container_name: frontend_dev
-    env_file: [.env]
     command: ["npm","run","dev","--","--host","--port","5173"]
     ports: ["5173:5173"]
-    networks: [foundry_net]
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
       interval: 10s
@@ -159,4 +161,3 @@ services:
       retries: 5
       start_period: 15s
     profiles: ["dev"]
-    restart: unless-stopped
