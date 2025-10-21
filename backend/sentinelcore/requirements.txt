@@ -1,2 +1,4 @@
 fastapi
 uvicorn[standard]
+redis>=5.0
+

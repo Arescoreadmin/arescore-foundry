@@ -1,14 +1,22 @@
-* text=auto
+@'
+# Default: normalize text, commit as LF
+*           text=auto
 
-# Hard rules for key files
-Makefile            text eol=lf
-*.sh                text eol=lf
-*.bash              text eol=lf
-*.py                text eol=lf
-*.yml               text eol=lf
-*.yaml              text eol=lf
-Dockerfile          text eol=lf
-*.rego              text eol=lf
+# Code & config should be LF
+*.py        text eol=lf
+*.sh        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.toml      text eol=lf
+*.md        text eol=lf
+Dockerfile  text eol=lf
+Makefile    text eol=lf
+
+# Windows scripts keep CRLF
+*.ps1       text eol=crlf
+*.bat       text eol=crlf
+'@ | Set-Content -Encoding utf8NoBOM .gitattributes
 
 # Frontend assets treated as binary so Git doesn’t touch them
 *.ico               binary

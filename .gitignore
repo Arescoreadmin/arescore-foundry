@@ -22,3 +22,4 @@ Thumbs.db
 
 # optional: ignore the unused PNG favicon since .ico exists
 frontend/public/favicon.ico.png
+.venv/

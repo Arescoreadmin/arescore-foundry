@@ -47,3 +47,21 @@ check:
 	awk -F':' '/^[a-zA-Z0-9_.-]+:/{print $$1}' Makefile \
 	| sort | uniq -d | { read dups || exit 0; \
 	if [ -n "$$dups" ]; then echo "Duplicate targets found:"; echo "$$dups"; exit 2; fi; }
+
+env-core:
+\t@docker exec -it sentinelcore env | grep -E 'RAG_CACHE|RAG_QUERY_TTL'
+
+smoke-rag:
+\t@docker exec -it sentinelcore python scripts/smoke_rag_cache.py || true
+
+bench-rag:
+\t@docker exec -i sentinelcore python - <<'PY'\nimport os,time\nos.environ.setdefault('RAG_CACHE_URL','sqlite:///data/rag_cache.sqlite3')\nfrom sentinelcore.rag_cache import Cache\nc=Cache();\nfrom time import perf_counter\ncalls={'e':0}\n\ndef slow(t):\n time.sleep(0.25); calls['e']+=1; return [float(len(t))]\ntext='x '*500\ns=perf_counter(); c.cached_embed(slow,text); m=perf_counter(); c.cached_embed(slow,text); e=perf_counter()\nprint('embed_calls=',calls['e'],' first_ms=',round((m-s)*1000,1),' second_ms=',round((e-m)*1000,1))\nPY
+
+env-core:
+\t@docker exec -it sentinelcore env | grep -E 'RAG_CACHE|RAG_QUERY_TTL' || true
+
+rag-hits:
+\t@CID=$$(python - <<'PY'\nimport uuid; print(uuid.uuid4())\nPY\n); \
+\tcurl -s -H "X-Correlation-ID: $$CID" "http://localhost:8000/healthz" >/dev/null || true; \
+\tcurl -s -H "X-Correlation-ID: $$CID" "http://localhost:8000/healthz" >/dev/null || true; \
+\tdocker logs sentinelcore --since=5m | grep $$CID | grep -E "RAGCACHE (embed|ingest|query)" || true
