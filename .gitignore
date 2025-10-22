@@ -33,3 +33,6 @@ __pycache__/
 .data/
 data/
 infra/backend/
+
+# ci artifacts
+artifacts/
