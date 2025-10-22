@@ -1,12 +1,15 @@
-# At top-level
-env:
-  GHCR_OWNER: ${{ github.repository_owner }}
+# .github/workflows/build-and-push.yml
 name: Build & Push Containers
 on: [push, pull_request]
 
 permissions:
   contents: read
   packages: write
+
+# Force a lowercase owner once, then reuse it
+env:
+  GHCR_OWNER_LC: ${{ toLower(github.repository_owner) }}
+  IMAGE_TAG: ghcr.io/${{ toLower(github.repository_owner) }}/sentinelcore:pr-${{ github.event.number || 'manual' }}
 
 jobs:
   guardrails:
@@ -32,16 +35,11 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Show workspace and Dockerfile
+      - name: Show resolved tag (paranoia check)
         run: |
-          set -euo pipefail
-          # your checks...
-          pwd
-          ls -al .
-          echo "infra/"; ls -al infra || true
-          echo "::group::Dockerfile"
-          sed -n '1,200p' infra/sentinelcore.Dockerfile || true
-          echo "::endgroup::"
+          echo "GHCR_OWNER=${{ github.repository_owner }}"
+          echo "GHCR_OWNER_LC=${{ env.GHCR_OWNER_LC }}"
+          echo "IMAGE_TAG=${{ env.IMAGE_TAG }}"
 
       - name: Login to GHCR
         if: github.event_name == 'push'
@@ -57,5 +55,4 @@ jobs:
           context: .
           file: infra/sentinelcore.Dockerfile
           push: ${{ github.event_name == 'push' }}
-          tags: ghcr.io/${{ github.repository_owner || 'arescoreadmin' }}/sentinelcore:pr-${{ github.event.number || 'manual' }}
-
+          tags: ${{ env.IMAGE_TAG }}
