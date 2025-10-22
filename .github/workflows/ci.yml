@@ -20,11 +20,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Keep this tiny and deterministic. No CRLF or space-before-TAB nonsense.
       - name: Lint line endings and Makefile tabs
+        shell: bash
         run: |
-          if git grep -I $'\r' -- . ; then echo "CRLF detected"; exit 1; fi
-          if grep -nP '(^|\s)[a-zA-Z0-9_-]+:\s*(?!\t)' Makefile | grep -vq $'\t'; then
-            echo "Makefile recipes need TABS"; exit 1
+          set -euo pipefail
+          files="$(git ls-files '*.py' '*.sh' '*.yml' '*.yaml' 'Dockerfile' '*.Dockerfile' || true)"
+          if [ -n "$files" ] && git grep -I -n $'\r' -- $files >/tmp/crlf.txt; then
+            echo "CRLF detected in:"
+            cat /tmp/crlf.txt
+            exit 1
+          fi
+          if [ -f Makefile ]; then
+            awk '
+              /^[[:space:]]*$/        { inrule=0; next }
+              /^([A-Za-z0-9_.-]+:|\.PHONY:)/ { inrule=1; next }
+              inrule && $0 !~ /^\t/ && $0 !~ /^[[:space:]]*#/ { bad=1 }
+              END { if (bad) { print "Makefile recipes need TABS"; exit 1 } }
+            ' Makefile
           fi
 
       - name: Prepare env files for CI
@@ -39,6 +52,7 @@ jobs:
         run: docker compose -f infra/docker-compose.yml up -d --build --remove-orphans
 
       - name: Wait for health
+        shell: bash
         run: |
           for i in {1..30}; do
             curl -fsS "$BASE_URL/health" && break || sleep 2
@@ -46,7 +60,8 @@ jobs:
           curl -fsS "$BASE_URL/health"
 
       - name: Run pytest
-        run: pytest -q backend/sentinelcore/Tests || pytest -q || true
+        run: |
+          pytest -q backend/sentinelcore/Tests || pytest -q || true
 
       - name: Dump logs on failure
         if: failure()
