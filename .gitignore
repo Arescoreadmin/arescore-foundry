@@ -22,3 +22,14 @@ Thumbs.db
 
 # optional: ignore the unused PNG favicon since .ico exists
 frontend/public/favicon.ico.png
+.venv/
+
+.venv/
+
+
+# --- repo hygiene ---
+__pycache__/
+*.egg-info/
+.data/
+data/
+infra/backend/

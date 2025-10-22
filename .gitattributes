@@ -1,18 +1,24 @@
+# --- text normalization ---
 * text=auto
 
-# Hard rules for key files
-Makefile            text eol=lf
-*.sh                text eol=lf
-*.bash              text eol=lf
-*.py                text eol=lf
-*.yml               text eol=lf
-*.yaml              text eol=lf
-Dockerfile          text eol=lf
-*.rego              text eol=lf
+# Force LF for code-ish stuff (Windows won't mangle these)
+*.py text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
 
-# Frontend assets treated as binary so Git doesn’t touch them
-*.ico               binary
-*.png               binary
-*.jpg               binary
-*.jpeg              binary
-*.svg               text eol=lf
+# Binary files stay binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip -diff
+*.gz  -diff
+*.tgz -diff
+
+# Keep junk out of source tarballs (if you ever make them)
+.gitignore     export-ignore
+.gitattributes export-ignore
