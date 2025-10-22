@@ -26,3 +26,10 @@ frontend/public/favicon.ico.png
 
 .venv/
 
+
+# --- repo hygiene ---
+__pycache__/
+*.egg-info/
+.data/
+data/
+infra/backend/
