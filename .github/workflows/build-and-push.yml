@@ -1,3 +1,6 @@
+# At top-level
+env:
+  GHCR_OWNER: ${{ github.repository_owner }}
 name: Build & Push Containers
 on: [push, pull_request]
 
@@ -31,6 +34,8 @@ jobs:
 
       - name: Show workspace and Dockerfile
         run: |
+          set -euo pipefail
+          # your checks...
           pwd
           ls -al .
           echo "infra/"; ls -al infra || true
