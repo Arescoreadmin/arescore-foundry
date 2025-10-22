@@ -1,24 +1,24 @@
-@'
-# Normalize text and commit as LF by default
-*           text=auto eol=lf
+# --- text normalization ---
+* text=auto
 
-# Code & config as LF
-*.py        text eol=lf
-*.sh        text eol=lf
-*.yml       text eol=lf
-*.yaml      text eol=lf
-*.json      text eol=lf
-*.toml      text eol=lf
-*.md        text eol=lf
-Dockerfile  text eol=lf
-Makefile    text eol=lf
+# Force LF for code-ish stuff (Windows won't mangle these)
+*.py text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
 
-# Windows scripts keep CRLF
-*.ps1       text eol=crlf
-*.bat       text eol=crlf
-'@ | Set-Content -Encoding utf8NoBOM .gitattributes
+# Binary files stay binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.zip -diff
+*.gz  -diff
+*.tgz -diff
 
-git add .gitattributes
-git add --renormalize .
-git commit -m "repo: fix .gitattributes and renormalize line endings"
-git push
+# Keep junk out of source tarballs (if you ever make them)
+.gitignore     export-ignore
+.gitattributes export-ignore
