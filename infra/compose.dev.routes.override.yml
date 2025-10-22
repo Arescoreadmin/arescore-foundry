@@ -1,0 +1,4 @@
+services:
+  sentinelcore:
+    environment:
+      ENABLE_DEV_ROUTES: "1"
