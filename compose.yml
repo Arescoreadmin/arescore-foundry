@@ -1,0 +1,64 @@
+services:
+  orchestrator:
+    build:
+      context: ./services/orchestrator
+    image: arescore/orchestrator:local
+    environment:
+      OPA_HOST: opa
+      OPA_PORT: "8181"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health').getcode()==200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks: [core]
+
+  spawn_service:
+    build:
+      context: ./services/spawn_service
+    image: arescore/spawn_service:local
+    environment:
+      TEMPLATES_DIR: /app/templates
+      ORCHESTRATOR_HOST: orchestrator
+      ORCHESTRATOR_PORT: "8080"
+      ORCHESTRATOR_PATH: /scenarios
+      BILLING_MODE: stub
+    read_only: true
+    cap_drop: ["ALL"]
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=16m
+    volumes:
+      - ./templates:/app/templates:ro
+    ports:
+      - "8082:8082"
+    depends_on:
+      orchestrator:
+        condition: service_started
+      opa:
+        condition: service_started
+    restart: unless-stopped
+    networks: [core]
+
+  opa:
+    image: openpolicyagent/opa:latest
+    user: "1000:1000"
+    command: ["run", "--server", "--log-level=info", "/policies"]
+    volumes:
+      - ./policies:/policies:ro
+    ports:
+      - "8181:8181"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8181/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    networks: [core]
+
+networks:
+  core: {}
