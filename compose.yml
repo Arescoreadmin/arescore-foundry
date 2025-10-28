@@ -1,3 +1,4 @@
+version: "3.9"
 services:
   orchestrator:
     build:
@@ -9,7 +10,11 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health').getcode()==200 else 1)\""]
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health').getcode()==200 else 1)\""
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -40,11 +45,21 @@ services:
         condition: service_started
       opa:
         condition: service_started
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8082/health').getcode()==200 else 1)\""
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
     restart: unless-stopped
     networks: [core]
 
   opa:
-    image: openpolicyagent/opa:latest
+    image: openpolicyagent/opa:0.67.0
     user: "1000:1000"
     command: ["run", "--server", "--log-level=info", "/policies"]
     volumes:
