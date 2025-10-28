@@ -21,3 +21,11 @@ down:
 
 logs:
 	$(COMPOSE) logs --no-log-prefix --tail=200
+
+smoke:
+	@docker compose -f compose.yml -f compose.staging.yml up -d --build orchestrator spawn_service
+	@sleep 2
+	@curl -fsS http://localhost:8080/health >/dev/null
+	@curl -fsS http://localhost:8082/health >/dev/null
+	@echo "smoke OK"
+
