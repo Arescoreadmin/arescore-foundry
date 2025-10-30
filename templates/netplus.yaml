@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Scenario
+metadata:
+  name: netplus-seed
+  labels: ["class:netplus"]
+limits:
+  durationMinutes: 30
+  cpuMillicores: 250
+  memoryMB: 256
+  attacker_max_exploits: 0
+network:
+  egress: deny
+assets:
+  profile: "defender-basic"
+successCriteria:
+  - type: "http"
+    target: "http://defender:8080/health"
+    expect: "ok"

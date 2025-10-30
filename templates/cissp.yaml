@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Scenario
+metadata:
+  name: cissp-seed
+  labels: ["class:cissp"]
+limits:
+  durationMinutes: 60
+  cpuMillicores: 400
+  memoryMB: 512
+  attacker_max_exploits: 5
+network:
+  egress: deny
+assets:
+  profile: "mixed-lab"
+successCriteria:
+  - type: "event"
+    target: "nats"
+    expect: "scenarios.started"
