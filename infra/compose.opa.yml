@@ -1,20 +1,19 @@
+# infra/compose.opa.yml
 services:
   opa:
     image: openpolicyagent/opa:0.67.0
     command: ["run","--server","--log-level=info","/policies"]
     volumes:
       - ../policies:/policies:ro
-    ports:
-      - "8181:8181"
-    # service-level hardening (valid keys here)
+    ports: ["8181:8181"]
     read_only: true
     cap_drop: ["ALL"]
-    security_opt:
-      - no-new-privileges:true
+    security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD","wget","-qO-","http://127.0.0.1:8181/"]
+      # hit the explicit /health endpoint (200 when server is ready)
+      test: ["CMD","wget","-qO-","http://127.0.0.1:8181/health"]
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 10
+      start_period: 25s
