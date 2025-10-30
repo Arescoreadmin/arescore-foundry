@@ -6,26 +6,15 @@ services:
       - ../policies:/policies:ro
     ports:
       - "8181:8181"
+    # service-level hardening (valid keys here)
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
     healthcheck:
       test: ["CMD","wget","-qO-","http://127.0.0.1:8181/"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 5s
-    restart: unless-stopped
-    read_only: true
-    cap_drop: ["ALL"]
-    security_opt:
-      - no-new-privileges:true
-    networks:
-      - foundry_net
-
-  orchestrator:
-    depends_on:
-      opa:
-        condition: service_healthy
-    networks:
-      - foundry_net
-
-networks:
-  foundry_net: {}

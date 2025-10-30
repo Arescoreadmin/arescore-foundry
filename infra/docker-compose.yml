@@ -36,9 +36,17 @@ services:
     build:
       context: ../services/orchestrator
       dockerfile: Dockerfile
+    read_only: true
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,noexec,size=32m
+    ulimits:
+      nofile: 65535
     container_name: orchestrator
     depends_on:
-      log_indexer:
+      opa:
         condition: service_healthy
     # Expose orchestrator on host :8010 to avoid clashing with sentinelcore
     ports:
