@@ -1,7 +1,7 @@
 services:
   opa:
     image: openpolicyagent/opa@sha256:ab76c858e9a1d230eca67290dcd7929d4eb63150ccd64e0a7b294ffa87233c08
-    command: ["run","--server","--log-level=info","/policies"]
+    command: ["run", "--server", "--log-level=info", "/policies"]
     volumes:
       - ../policies:/policies:ro
     ports: ["8181:8181"]
@@ -10,7 +10,7 @@ services:
     security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD","/opa","health","--address=http://127.0.0.1:8181"]
+      test: ["CMD", "/opa", "health", "--address=http://127.0.0.1:8181"]
       interval: 15s
       timeout: 5s
       retries: 10
