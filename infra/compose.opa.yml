@@ -1,7 +1,6 @@
-# infra/compose.opa.yml
 services:
   opa:
-    image: openpolicyagent/opa:0.67.0
+    image: openpolicyagent/opa@sha256:ab76c858e9a1d230eca67290dcd7929d4eb63150ccd64e0a7b294ffa87233c08
     command: ["run","--server","--log-level=info","/policies"]
     volumes:
       - ../policies:/policies:ro
@@ -11,11 +10,8 @@ services:
     security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
     healthcheck:
-      # hit the explicit /health endpoint (200 when server is ready)
-      test: ["CMD","wget","-qO-","http://127.0.0.1:8181/health"]
+      test: ["CMD","/opa","health","--address=http://127.0.0.1:8181"]
       interval: 15s
       timeout: 5s
       retries: 10
-      start_period: 25s
-selfselfhelp
-
+      start_period: 15s
