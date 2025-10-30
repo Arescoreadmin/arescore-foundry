@@ -1,9 +1,9 @@
-delete that step, save, exit
-git add .github/workflows/build-and-push.yml
-git commit -m "ci: remove debug step"
-git push
 name: Build & Push Containers
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: read
