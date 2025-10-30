@@ -36,3 +36,24 @@ infra/backend/
 
 # ci artifacts
 artifacts/
+
+# temp & artifacts
+*.bak.*
+*.tmp
+*.log
+*.DS_Store
+__pycache__/
+*.pyc
+
+# compose scratch
+*compose*.yml.tmp*
+compose.yml.fixed
+
+# local scripts & shims
+scripts/.shim/
+orchestrator_shim/
+
+# test & dev scratch
+test_foundry.sh
+services/**/tests/
+
