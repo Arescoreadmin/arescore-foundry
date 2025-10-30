@@ -65,7 +65,7 @@ services:
   sentinelcore:
     <<: *svc_defaults
     build:
-      context: ../services/orchestrator
+      context: ./backend/sentinelcore
       dockerfile: Dockerfile
     container_name: sentinelcore
     depends_on:
@@ -74,7 +74,7 @@ services:
       orchestrator:
         condition: service_healthy
     ports:
-      - "8080:8080"   # canonical owner of host:8000
+      - "8000:8000"   # canonical owner of host:8000
     environment:
       PYTHONUNBUFFERED: "1"
       PYTHONPATH: /app:/app/app
