@@ -1,0 +1,9 @@
+syntax = "proto3";
+package federation;
+
+message Ping { string msg = 1; }
+message Pong { string msg = 1; }
+
+service Federation {
+  rpc Health(Ping) returns (Pong);
+}

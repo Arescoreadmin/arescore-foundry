@@ -1,17 +1,19 @@
-package foundry.training
+package training_gate_test
 
-test_allow_true {
-  data.foundry.training.allow with input as {
-    "metadata": {"labels": ["class:netplus"]},
-    "limits":   {"attacker_max_exploits": 0},
-    "network":  {"egress": "deny"}
+import data.foundry.training_gate
+
+test_training_gate_allows if {
+  training_gate.allow with input as {
+    "dataset": {"id": "ds1"},
+    "model": {"hash": "h1"},
+    "tokens": {"consent": {"signature": "s"}}
   }
 }
 
-test_allow_false_missing_label {
-  not data.foundry.training.allow with input as {
-    "metadata": {"labels": []},
-    "limits":   {"attacker_max_exploits": 0},
-    "network":  {"egress": "deny"}
+test_training_gate_denies_if_missing_fields if {
+  not training_gate.allow with input as {
+    "dataset": {"id": ""},
+    "model": {"hash": ""},
+    "tokens": {"consent": {"signature": ""}}
   }
 }
