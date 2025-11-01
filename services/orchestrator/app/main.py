@@ -1,55 +1,67 @@
-from fastapi import FastAPI, Request, HTTPException
-import http.client
-import os
-import json
-import uuid, json, logging
+sudo python3 - <<'PY'
+from pathlib import Path
+p = Path("/opt/arescore-foundry/services/orchestrator/app/main.py")
+p.write_text('''\
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel, Field
+import http.client, json, os, logging
 
-# OPA Policy Configuration
+log = logging.getLogger("orchestrator")
+app = FastAPI(title="orchestrator")
+
 OPA_HOST = os.getenv("OPA_HOST", "opa")
 OPA_PORT = int(os.getenv("OPA_PORT", "8181"))
 OPA_PATH = "/v1/data/foundry/training/allow"
 
+class Metadata(BaseModel):
+    labels: list[str] = Field(default_factory=list)
+
+class Limits(BaseModel):
+    attacker_max_exploits: int
+
+class Network(BaseModel):
+    egress: str  # expect "deny"
+
+class Scenario(BaseModel):
+    metadata: Metadata
+    limits: Limits
+    network: Network
+
 def opa_allow(scenario: dict) -> bool:
-    """Check if scenario is allowed by OPA policy."""
+    body = json.dumps({"input": scenario})
+    conn = http.client.HTTPConnection(OPA_HOST, OPA_PORT, timeout=3)
     try:
-        body = json.dumps({"input": scenario}).encode("utf-8")
-        conn = http.client.HTTPConnection(OPA_HOST, OPA_PORT, timeout=3)
         conn.request("POST", OPA_PATH, body=body, headers={"Content-Type": "application/json"})
         res = conn.getresponse()
-        
-        if res.status >= 300:
-            return False
-        
-        data = json.loads(res.read().decode() or "{}")
-        return bool(data.get("result", False))
+        text = res.read().decode() if res else ""
     except Exception as e:
-        print(f"OPA_ERROR: {e}")
-        return False
+        log.exception("OPA unreachable")
+        raise HTTPException(status_code=502, detail=f"opa_unreachable: {e}")
     finally:
-        if conn:
-            conn.close()
+        try: conn.close()
+        except Exception: pass
 
+    if res is None or res.status >= 300:
+        clipped = (text or "")[:300]
+        log.error("OPA non-200: status=%s body=%s", getattr(res,'status',None), clipped)
+        raise HTTPException(status_code=502, detail=f"opa_error status={getattr(res,'status',None)} body={clipped}")
 
-app = FastAPI(title="orchestrator-mock")
-log = logging.getLogger("uvicorn.access")
+    try:
+        data = json.loads(text or "{}")
+    except json.JSONDecodeError as e:
+        log.error("OPA bad JSON: %r", text[:300])
+        raise HTTPException(status_code=502, detail=f"opa_bad_json: {e}")
+
+    return bool(data.get("result", False))
 
 @app.get("/health")
 def health():
     return {"ok": True}
 
 @app.post("/scenarios")
-
-        async def create_scenario(req: Request):
-    payload = await req.json()
-    # OPA Policy Check
-    if not opa_allow(payload):
-        raise HTTPException(status_code=403, detail="scenario denied by policy")
-    
-    # tiny validation so we don't accept nonsense
-    if "metadata" not in payload or "name" not in payload.get("metadata", {}):
-        raise HTTPException(status_code=400, detail="missing metadata.name")
-    sid = str(uuid.uuid4())[:8]
-    # log it so you can inspect in docker logs
-    log.info("SCENARIO_SUBMIT %s %s", sid, json.dumps(payload))
-    # fake acceptance response (the spawn service just expects something parsable)
-    return {"status": "accepted", "scenario_id": sid}
+def create_scenario(s: Scenario):
+    allowed = opa_allow(s.model_dump())
+    return {"allowed": allowed}
+''')
+print("main.py bytes:", p.stat().st_size)
+PY

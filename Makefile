@@ -1,31 +1,47 @@
-SHELL := /bin/sh
-.PHONY: up down smoke logs ps rebuild nuke check
+OPA_IMG := openpolicyagent/opa:0.67.0@sha256:3b59c5dd0e6f7f9a5a31f7af64b2b1f1a5d7e141b9f0d2a8f9d2f0c1a6b9e7c3
+POL_DIR := $(PWD)/policies
+COMPOSE := docker compose --env-file /etc/arescore-foundry.env -f compose.yml
+BASE ?= /opt/arescore-foundry
+ENV_FILE ?= /etc/arescore-foundry.env
 
-# Compose file(s). Override like:
-#   make up COMPOSE_FILES="compose.yml -f compose.staging.yml"
-COMPOSE_FILES ?= infra/docker-compose.yml
-COMPOSE = docker compose -f $(COMPOSE_FILES)
+.PHONY: opa-check opa-test opa-eval up down restart smoke
 
-# Health endpoints. Override if your ports differ.
-API_HEALTH ?= http://localhost:8000/health
-FE_HEALTH  ?= http://localhost:3000/health
+opa-check:
+	@docker run --rm -v "$(POL_DIR):/policies:ro" $(OPA_IMG) check /policies
 
-# Curl flags: fail on non-2xx, retry transient errors, keep quiet unless broken.
-CURLQ = curl -fsS --retry 15 --retry-all-errors --retry-delay 1
+opa-test:
+	@docker run --rm -v "$(POL_DIR):/policies:ro" $(OPA_IMG) test -v /policies
+
+opa-eval:
+	@printf '%s' '{"input":{"metadata":{"labels":["class:netplus"]},"limits":{"attacker_max_exploits":0},"network":{"egress":"deny"}}}' \
+	| docker run --rm -i -v "$(POL_DIR):/policies:ro" $(OPA_IMG) eval -f pretty -d /policies 'data.foundry.training.allow'
 
 up:
-	$(COMPOSE) up -d --build --wait
+	@$(COMPOSE) up -d --remove-orphans
 
 down:
-	$(COMPOSE) down -v
+	@docker compose --env-file $(ENV_FILE) -f $(BASE)/compose.yml -f $(BASE)/compose.override.yml down || true
 
-logs:
-	$(COMPOSE) logs --no-log-prefix --tail=200
+restart:
+	@$(COMPOSE) restart opa orchestrator
+
+smoke: up
+	@sleep 1
+	@curl -fsS http://127.0.0.1:8181/ >/dev/null
+	@curl -fsS http://127.0.0.1:8080/health >/dev/null
+	@printf '%s' '{"input":{"metadata":{"labels":["class:netplus"]},"limits":{"attacker_max_exploits":0},"network":{"egress":"deny"}}}' \
+	| curl -sS http://127.0.0.1:8181/v1/data/foundry/training/allow -H 'content-type: application/json' -d @- | jq -e '.result==true' >/dev/null
+	@printf '%s' '{"metadata":{"labels":["class:netplus"]},"limits":{"attacker_max_exploits":0},"network":{"egress":"deny"}}' \
+	| curl -sS http://127.0.0.1:8080/scenarios -H 'content-type: application/json' -d @- | jq -e '.allowed==true' >/dev/null
+	@echo "smoke: PASS"
+
+fix:
+	@sudo -E BASE=$(BASE) ENV_FILE=$(ENV_FILE) bash scripts/foundry_autofix.sh
 
 smoke:
-	@docker compose -f compose.yml -f compose.staging.yml up -d --build orchestrator spawn_service
-	@sleep 2
-	@curl -fsS http://localhost:8080/health >/dev/null
-	@curl -fsS http://localhost:8082/health >/dev/null
-	@echo "smoke OK"
+	@/opt/arescore-foundry/bin/smoke.sh
+
+logs:
+	@docker logs --tail=200 arescore-foundry-opa-1 || true
+	@docker logs --tail=200 arescore-foundry-orchestrator-1 || true
 

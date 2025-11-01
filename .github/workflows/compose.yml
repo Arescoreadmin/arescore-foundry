@@ -1,0 +1,8 @@
+name: compose-check
+on: pull_request
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/ci_compose_check.sh

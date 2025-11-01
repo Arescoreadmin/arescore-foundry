@@ -1,5 +1,0 @@
-Add a CI step for a Docker/Compose repo that:
-- Builds the frontend image
-- Runs "nginx -t" inside that built image
-- Runs "make smoke" with retries
-Return only the YAML steps snippet to append under the existing job.

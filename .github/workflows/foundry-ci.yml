@@ -1,0 +1,19 @@
+name: foundry-ci
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-opa-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Rego (OPA 1.10)
+        run: |
+          printf '%s' '{"metadata":{"labels":["class:netplus"]},"limits":{"attacker_max_exploits":0},"network":{"egress":"deny"}}' \
+          | docker run --rm -i -v "$PWD/policies":/policies:ro openpolicyagent/opa:1.10.0 \
+              eval -b /policies --stdin-input 'data.foundry.training.allow' >/dev/null
+
+      - name: Build orchestrator
+        run: docker build -t local/orchestrator:test ./services/orchestrator

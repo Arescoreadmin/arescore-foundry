@@ -1,34 +1,56 @@
+# .github/workflows/smoke.yml
 name: smoke
 on:
   pull_request:
     branches: [ main ]
 
 jobs:
-  precommit:
+  smoke:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Guard: no duplicate 'allow {' heads in foundry.training outside foundry.rego
-      - name: Policy guard
+      # ✅ OPA policy unit tests (static, no containers)
+      - name: Policy tests (OPA v1.10)
         run: |
-          chmod +x scripts/ci_guard_rego_heads.sh || true
-          if [[ -x scripts/ci_guard_rego_heads.sh ]]; then
-            scripts/ci_guard_rego_heads.sh
-          else
-            echo "WARN: scripts/ci_guard_rego_heads.sh not found; skipping"
-          fi
+          docker run --rm \
+            -v "${{ github.workspace }}/policies:/policies:ro" \
+            openpolicyagent/opa:1.10.0 \
+            test /policies -v
 
-      # OPA unit tests with official image (no compose, no daemon perms needed)
-      - name: OPA tests
-        run: |
-          docker run --rm -v "$PWD/policies:/policies:ro" openpolicyagent/opa:0.67.0 test -v /policies
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      # Compose lint only (don’t up services on CI)
-      - name: Compose config lint
+      - name: Build orchestrator (no push)
+        run: docker build -t local/orchestrator:test ./services/orchestrator
+
+      - name: Compose up (base + override)
         run: |
-          docker compose version || sudo apt-get update && sudo apt-get install -y docker-compose-plugin
-          docker compose -f infra/docker-compose.yml -f infra/compose.opa.yml config >/dev/null
+          mkdir -p /opt/arescore-foundry
+          rsync -a ./ /opt/arescore-foundry/
+          docker compose \
+            -f /opt/arescore-foundry/compose.yml \
+            -f /opt/arescore-foundry/compose.override.yml up -d
+
+      - name: Wait for health
+        run: |
+          t=60; while ! curl -fsS http://127.0.0.1:8181/ >/dev/null; do [ $((t-=1)) -le 0 ] && exit 1; sleep 1; done
+          t=60; while ! curl -fsS http://127.0.0.1:8080/health >/dev/null; do [ $((t-=1)) -le 0 ] && exit 1; sleep 1; done
+
+      - name: Policy -> OPA
+        run: |
+          printf '%s' '{"input":{"metadata":{"labels":["class:netplus"]},"limits":{"attacker_max_exploits":0},"network":{"egress":"deny"}}}' \
+          | curl -fsS http://127.0.0.1:8181/v1/data/foundry/training/allow -H 'content-type: application/json' -d @- \
+          | jq -e '.result==true' >/dev/null
+
+      - name: Orchestrator -> OPA
+        run: |
+          printf '%s' '{"metadata":{"labels":["class:netplus"]},"limits":{"attacker_max_exploits":0},"network":{"egress":"deny"}}' \
+          | curl -fsS http://127.0.0.1:8080/scenarios -H 'content-type: application/json' -d @- \
+          | jq -e '.allowed==true' >/dev/null
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v || true

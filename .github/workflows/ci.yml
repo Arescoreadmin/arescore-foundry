@@ -1,0 +1,66 @@
+# .github/workflows/ci.yml
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'policies/**'
+      - '.github/workflows/**'
+      - 'services/**'
+      - 'compose.yml'
+  pull_request:
+    paths:
+      - 'policies/**'
+      - 'services/**'
+      - 'compose.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: OPA lint & tests
+        run: |
+          docker run --rm -v "$PWD/policies:/policies:ro" \
+            openpolicyagent/opa:0.67.0@sha256:3b59c5dd0e6f7f9a5a31f7af64b2b1f1a5d7e141b9f0d2a8f9d2f0c1a6b9e7c3 \
+            check /policies
+          docker run --rm -v "$PWD/policies:/policies:ro" \
+            openpolicyagent/opa:0.67.0@sha256:3b59c5dd0e6f7f9a5a31f7af64b2b1f1a5d7e141b9f0d2a8f9d2f0c1a6b9e7c3 \
+            test -v /policies
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: [policy-check]   # <- hard gate
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build & push orchestrator
+        run: |
+          IMAGE_PREFIX=ghcr.io/${{ github.repository }}
+          docker build -t $IMAGE_PREFIX/orchestrator:latest ./services/orchestrator
+          docker push $IMAGE_PREFIX/orchestrator:latest
+
+      - name: Build & push spawn_service
+        run: |
+          IMAGE_PREFIX=ghcr.io/${{ github.repository }}
+          docker build -t $IMAGE_PREFIX/spawn_service:latest ./services/spawn_service
+          docker push $IMAGE_PREFIX/spawn_service:latest
