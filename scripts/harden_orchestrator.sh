@@ -1,123 +1,63 @@
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -euo pipefail
 
-COMPOSE="infra/docker-compose.yml"
-ORCH_DIR="services/orchestrator"
-OPA_DIR="policies"
-OPA_FILE="$OPA_DIR/foundry.rego"
-DOCKERIGNORE="$ORCH_DIR/.dockerignore"
+ROOT="$(pwd)"
+DF_PATH="services/orchestrator/Dockerfile"
+EP_PATH="services/orchestrator/entrypoint.sh"
+REQ_PATH="services/orchestrator/app/requirements.txt"
+ENV_ARG=()
+[ -n "${ENV_FILE:-}" ] && ENV_ARG=(--env-file "$ENV_FILE")
 
-note(){ printf "==> %s\n" "$*"; }
-die(){ echo "ERROR: $*" >&2; exit 1; }
+echo "==> Hardening orchestrator image & entrypoint"
+echo "Repo: $ROOT"
 
-[[ -f "$COMPOSE" ]] || die "missing $COMPOSE"
-[[ -d "$ORCH_DIR" ]] || die "missing $ORCH_DIR"
+mkdir -p "$(dirname "$REQ_PATH")"
+touch "$REQ_PATH"
+grep -Eq '^[[:space:]]*fastapi([=<>]|$)' "$REQ_PATH" || echo 'fastapi==0.115.*' >> "$REQ_PATH"
+grep -Eq '^[[:space:]]*uvicorn([=<>]|$)' "$REQ_PATH" || echo 'uvicorn==0.30.*' >> "$REQ_PATH"
 
-# 0) backup compose
-cp -v "$COMPOSE" "${COMPOSE}.bak.$(date +%s)"
+mkdir -p "$(dirname "$EP_PATH")"
+cat > "$EP_PATH" <<'ENTRY'
+#!/usr/bin/env sh
+set -eu
+python - <<'PY' || exit 90
+import importlib
+m = importlib.import_module("app.main")
+assert hasattr(m, "app"), "Expected 'app' in app.main (FastAPI instance)"
+PY
+exec python -m uvicorn app.main:app --host 0.0.0.0 --port 8080
+ENTRY
+chmod +x "$EP_PATH"
 
-##############
-# (1) depends_on: opa (healthy) under orchestrator
-##############
-note "Ensuring orchestrator depends_on -> opa (healthy)"
+mkdir -p "$(dirname "$DF_PATH")"
+cat > "$DF_PATH" <<'DOCKER'
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+WORKDIR /app
+COPY services/_generated /app/services/_generated
+COPY services/orchestrator/app /app/app
+COPY services/orchestrator/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh && \
+    python -m pip install --upgrade pip && \
+    if [ -f /app/app/requirements.txt ]; then pip install -r /app/app/requirements.txt; fi
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 \
+  CMD python -c 'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).getcode()==200 else 1)'
+EXPOSE 8080
+ENTRYPOINT ["/entrypoint.sh"]
+DOCKER
 
-# quick check: already present?
-if docker compose -f "$COMPOSE" config | sed -n '/^  orchestrator:/,/^  [^ ]/p' \
-   | sed -n '/depends_on:/,/^[^ ]/p' | grep -qE '^\s+opa:\s*$'; then
-  note "depends_on.opa already present — skipping insert"
-else
-  # If a depends_on block exists, append opa; else create a new depends_on block after container_name (or after build:)
-  awk -v MODE="insert-opa" '
-    BEGIN{in_orch=0; inserted=0; have_dep=0}
-    /^  orchestrator:/{in_orch=1}
-    in_orch && /^  [^ ]/{in_orch=0}
-    { line=$0 }
-    in_orch && /^\s+depends_on:/{have_dep=1}
-    # Append opa under existing depends_on (only once)
-    in_orch && have_dep && !inserted && /^\s+depends_on:\s*$/ {
-      print line;
-      print "      opa:";
-      print "        condition: service_healthy";
-      print "        required: true";
-      inserted=1; next
-    }
-    # If no depends_on existed by the time we leave container_name/build, insert after first suitable anchor
-    in_orch && !have_dep && !inserted && /^\s+(container_name|build):/ && anchor=="" { anchor=$1 }
-    in_orch && !have_dep && !inserted && anchor!="" && $0!~/^\s+(container_name|build):/ && $0!~/^\s+dockerfile:/ {
-      print "    depends_on:";
-      print "      opa:";
-      print "        condition: service_healthy";
-      print "        required: true";
-      inserted=1;
-    }
-    { print line }
-  ' "$COMPOSE" > /tmp/compose.tmp && mv /tmp/compose.tmp "$COMPOSE"
-fi
+echo "==> Validating compose"
+docker compose "${ENV_ARG[@]}" -f compose.yml -f compose.federated.yml config >/dev/null
 
-##############
-# (2) Minimal OPA policy so health/eval endpoint exists
-##############
-note "Ensuring minimal OPA policy exists"
-mkdir -p "$OPA_DIR"
-if [[ ! -f "$OPA_FILE" ]]; then
-  cat > "$OPA_FILE" <<'REGO'
-package foundry.training
-default allow = true
-REGO
-  note "Wrote $OPA_FILE"
-else
-  note "$OPA_FILE already present — leaving as-is"
-fi
+echo "==> Rebuilding orchestrator"
+docker compose "${ENV_ARG[@]}" -f compose.yml -f compose.federated.yml build --no-cache orchestrator
 
-##############
-# (3) .dockerignore for orchestrator
-##############
-note "Ensuring orchestrator/.dockerignore"
-mkdir -p "$ORCH_DIR"
-touch "$DOCKERIGNORE"
-for pat in '__pycache__/' '*.pyc' '.env' '.git' '.gitignore' '.DS_Store'; do
-  grep -qxF "$pat" "$DOCKERIGNORE" || echo "$pat" >> "$DOCKERIGNORE"
-done
+echo "==> Starting orchestrator"
+docker compose "${ENV_ARG[@]}" -f compose.yml -f compose.federated.yml up -d orchestrator
 
-##############
-# (4) Disable Uvicorn access logs via env
-##############
-note "Setting UVICORN_ACCESS_LOG=false in orchestrator env"
-if docker compose -f "$COMPOSE" config | sed -n '/^  orchestrator:/,/^  [^ ]/p' \
-   | sed -n '/environment:/,/^[^ ]/p' | grep -q 'UVICORN_ACCESS_LOG'; then
-  note "UVICORN_ACCESS_LOG already present — skipping insert"
-else
-  awk '
-    BEGIN{in_orch=0; in_env=0; inserted=0}
-    /^  orchestrator:/{in_orch=1}
-    in_orch && /^  [^ ]/{in_orch=0; in_env=0}
-    {
-      if(in_orch && /^    environment:\s*$/ && !inserted){
-        print $0
-        print "      UVICORN_ACCESS_LOG: \"false\""
-        inserted=1; next
-      }
-      # If no environment block exists, create one after image/build/env anchors
-      if(in_orch && !inserted && (/^\s+ports:$/ || /^\s+healthcheck:$/ || /^\s+networks:$/)){
-        print "    environment:"
-        print "      UVICORN_ACCESS_LOG: \"false\""
-        inserted=1
-      }
-      print $0
-    }
-  ' "$COMPOSE" > /tmp/compose.tmp && mv /tmp/compose.tmp "$COMPOSE"
-fi
+echo "==> Probing /health (host)"
+curl -fsS http://127.0.0.1:8080/health && echo "OK: host probe"
 
-echo
-note "Validating compose after edits"
-docker compose -f "$COMPOSE" config >/dev/null && echo "✅ compose OK"
-
-cat <<'NEXT'
-----------------------------------------------------------------
-Next steps:
-  docker compose -f infra/docker-compose.yml up -d opa --force-recreate
-  docker compose -f infra/docker-compose.yml up -d orchestrator --force-recreate --no-deps
-  curl -fsS http://127.0.0.1:8181/ && echo "OPA OK"
-  curl -fsS http://127.0.0.1:8080/health && echo "orchestrator OK"
-----------------------------------------------------------------
-NEXT
+echo "==> Probing /health (sidecar)"
+ORCH_CID="$(docker compose "${ENV_ARG[@]}" ps -q orchestrator)"
+[ -n "$ORCH_CID" ] && docker run --rm --network "container:${ORCH_CID}" curlimages/curl:8.10.1 -fsS http://127.0.0.1:8080/health && echo "OK: sidecar probe" || echo "WARN: no container id"

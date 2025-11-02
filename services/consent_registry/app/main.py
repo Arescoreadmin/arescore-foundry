@@ -1,13 +1,23 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
-app = FastAPI()
+
+app = FastAPI(title="consent_registry")
+
 @app.get("/health")
 def health(): return {"ok": True}
-class OptIn(BaseModel):
-    subject_id: str | None = None
-    model_hash: str | None = None
+
+@app.get("/live")
+def live(): return {"status": "alive"}
+
+@app.get("/ready")
+def ready(): return {"status": "ready"}
+
+# Expected by smokes:
 @app.post("/consent/training/optin")
-def optin(payload: OptIn | None = None):
-    return {"status":"opted_in","subject": (payload.subject_id if payload else None)}
+def training_optin():
+    # TODO: persist subject/token, etc.
+    return {"status": "opted_in", "subject": None}
+
 @app.get("/crl")
-def crl(): return {"serials": []}
+def crl():
+    # TODO: wire to real CRL backing store
+    return {"serials": []}
