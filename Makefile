@@ -25,21 +25,8 @@ down:
 restart:
 	@$(COMPOSE) restart opa orchestrator
 
-smoke: up
-	@sleep 1
-	@curl -fsS http://127.0.0.1:8181/ >/dev/null
-	@curl -fsS http://127.0.0.1:8080/health >/dev/null
-	@printf '%s' '{"input":{"metadata":{"labels":["class:netplus"]},"limits":{"attacker_max_exploits":0},"network":{"egress":"deny"}}}' \
-	| curl -sS http://127.0.0.1:8181/v1/data/foundry/training/allow -H 'content-type: application/json' -d @- | jq -e '.result==true' >/dev/null
-	@printf '%s' '{"metadata":{"labels":["class:netplus"]},"limits":{"attacker_max_exploits":0},"network":{"egress":"deny"}}' \
-	| curl -sS http://127.0.0.1:8080/scenarios -H 'content-type: application/json' -d @- | jq -e '.allowed==true' >/dev/null
-	@echo "smoke: PASS"
-
 fix:
 	@sudo -E BASE=$(BASE) ENV_FILE=$(ENV_FILE) bash scripts/foundry_autofix.sh
-
-smoke:
-	@/opt/arescore-foundry/bin/smoke.sh
 
 logs:
 	@docker logs --tail=200 arescore-foundry-opa-1 || true
@@ -47,3 +34,7 @@ logs:
 
 opa-test:
 	docker run --rm -v "$(PWD)/policies":/policies:ro openpolicyagent/opa:1.10.0 test /policies -v
+
+.PHONY: smoke
+smoke:
+	bash ./scripts/smoke_overlay.sh
