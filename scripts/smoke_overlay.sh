@@ -1,36 +1,97 @@
+# scripts/smoke_overlay.sh
 #!/usr/bin/env bash
-set -Eeuo pipefail
+set -euo pipefail
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$root"
+COMPOSE="docker compose -f compose.yml -f compose.federated.yml"
+CURL="curl -fsS --max-time 3"
+RETRIES=${RETRIES:-40}     # ~40s worst-case
+SLEEP=${SLEEP:-1}
 
-echo "==> OPA unit tests"
-docker run --rm -v "$PWD/policies":/policies:ro openpolicyagent/opa:1.10.0 test /policies -v >/dev/null
-echo "OK: OPA tests passed"
+say() { printf '%b\n' "$*"; }
+ok()  { say "OK: $*"; }
+err() { say "FAIL: $*"; }
 
-echo "==> Ensuring stack is up (compose + federated)"
-docker compose -f compose.yml -f compose.federated.yml up -d >/dev/null
+# --- 0) Gate on OPA unit tests
+say "==> OPA unit tests"
+docker run --rm -v "$PWD/policies:/policies:ro" openpolicyagent/opa:1.10.0 test /policies -v >/dev/null
+ok "OPA tests passed"
 
-fail=0
-check() {
-  local name="$1" url="$2" method="${3:-GET}"
-  if curl -fsS -X "$method" "$url" >/dev/null; then
-    echo "OK: $name"
+# --- 1) Ensure stack is up
+say "==> Ensuring stack is up (compose + federated)"
+$COMPOSE up -d --remove-orphans >/dev/null
+$COMPOSE ps
+
+# --- 2) Wait for container health (robust via docker inspect)
+say "==> Waiting for containers to be healthy"
+need_healthy=(orchestrator fl_coordinator consent_registry evidence_bundler)
+
+health_of() {
+  local svc="$1"
+  local cid="$($COMPOSE ps -q "$svc" 2>/dev/null | head -n1)"
+  [ -z "$cid" ] && { echo "missing"; return; }
+  # If no Healthcheck is defined, treat "running" as healthy
+  local has_hc
+  has_hc="$(docker inspect -f '{{if .State.Health}}yes{{end}}' "$cid" 2>/dev/null || true)"
+  if [ "$has_hc" = "yes" ]; then
+    docker inspect -f '{{.State.Health.Status}}' "$cid" 2>/dev/null || echo "unknown"
   else
-    echo "FAIL: $name ($method $url)" >&2
-    fail=1
+    docker inspect -f '{{.State.Status}}' "$cid" 2>/dev/null || echo "unknown"
   fi
 }
 
-echo "==> Service health checks"
-check fl_coordinator      "http://127.0.0.1:9092/health"
-check consent_opt_in      "http://127.0.0.1:9093/consent/training/optin" POST
-check consent_crl         "http://127.0.0.1:9093/crl"
-check evidence_bundler    "http://127.0.0.1:9094/health"
-check orchestrator        "http://127.0.0.1:8080/health"
+for svc in "${need_healthy[@]}"; do
+  i=0
+  while :; do
+    status="$(health_of "$svc")"
+    if [ "$status" = "healthy" ] || [ "$status" = "running" ]; then
+      ok "$svc healthy"
+      break
+    fi
+    i=$((i+1))
+    if [ $i -ge ${RETRIES:-40} ]; then
+      err "$svc did not become healthy (last status: $status)"
+      # show last 40 log lines to help debug
+      $COMPOSE logs --tail=40 "$svc" || true
+      exit 1
+    fi
+    sleep "${SLEEP:-1}"
+  done
+done
 
-if [[ "$fail" -ne 0 ]]; then
-  echo "One or more checks failed." >&2
-  exit 1
-fi
-echo "All green."
+
+# --- 3) HTTP probe helpers with retries (handles conn-refused/reset)
+wait_http() {
+  local method="$1" url="$2" body="${3:-}"
+  local i=0
+  while :; do
+    if [ "$method" = "GET" ]; then
+      if $CURL "$url" >/dev/null 2>&1; then return 0; fi
+    else
+      if printf '%s' "$body" | $CURL -X "$method" -d @- "$url" >/dev/null 2>&1; then return 0; fi
+    fi
+    i=$((i+1)); [ $i -ge $RETRIES ] && return 1
+    sleep "$SLEEP"
+  done
+}
+
+say "==> Service health checks"
+declare -A checks=(
+  ["fl_coordinator (GET /health)"]="GET http://127.0.0.1:9092/health"
+  ["consent_opt_in (POST /consent/training/optin)"]="POST http://127.0.0.1:9093/consent/training/optin"
+  ["consent_crl (GET /crl)"]="GET http://127.0.0.1:9093/crl"
+  ["evidence_bundler (GET /health)"]="GET http://127.0.0.1:9094/health"
+  ["orchestrator (GET /health)"]="GET http://127.0.0.1:8080/health"
+)
+
+fail=0
+for label in "${!checks[@]}"; do
+  read -r method url <<<"${checks[$label]}"
+  if wait_http "$method" "$url"; then
+    ok "$label"
+  else
+    err "$label (URL: $url)"
+    fail=1
+  fi
+done
+
+[ $fail -eq 0 ] && { say "All green."; exit 0; } || { say "One or more checks failed."; exit 1; }
