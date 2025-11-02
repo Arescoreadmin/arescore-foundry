@@ -1,63 +1,33 @@
-# /home/jcosat/Projects/arescore-foundry/compose.yml (minimal, valid baseline)
-version: "3.9"
-name: arescore-foundry
-
-networks:
-  core:
-    driver: bridge
-
-x-logging: &default-logging
-  driver: json-file
-  options:
-    max-size: "10m"
-    max-file: "3"
-
-x-security: &default-security
-  read_only: true
-  cap_drop: ["ALL"]
-  security_opt:
-    - no-new-privileges:true
-
 services:
   opa:
-    image: openpolicyagent/opa@sha256:2d2a9a3d3b...   # replace with the digest you’ve been using
+    image: openpolicyagent/opa@sha256:c0814ce7811ecef8f1297a8e55774a1d5422e5c18b996b665acbc126124fab19
     command: ["run", "--server", "/policies"]
     volumes:
       - ./policies:/policies:ro
     read_only: true
-    ports:
-      - "127.0.0.1:8181:8181"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8181/"]
+      test: ["CMD", "opa", "eval", "1==1"]
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 5s
-    networks:
-      core:
-        aliases: ["opa"]
-    logging: *default-logging
-    <<: *default-security
+    restart: unless-stopped
 
   orchestrator:
     build:
-      context: ./services/orchestrator
-    image: arescore/orchestrator:local
-    environment:
-      OPA_HOST: opa
-      OPA_PORT: "8181"
-    ports:
-      - "8080:8080"
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
     depends_on:
       opa:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8181/"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 5s
-    networks:
-      - core
-    logging: *default-logging
-    <<: *default-security
+        condition: service_started
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  spawn_service:
+    build:
+      context: .
+      dockerfile: services/spawn_service/Dockerfile
+    depends_on:
+      orchestrator:
+        condition: service_started
+    restart: unless-stopped
