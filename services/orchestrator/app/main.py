@@ -1,3 +1,4 @@
+from services._generated import federation_pb2, federation_pb2_grpc
 sudo python3 - <<'PY'
 from pathlib import Path
 p = Path("/opt/arescore-foundry/services/orchestrator/app/main.py")

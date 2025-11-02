@@ -45,3 +45,5 @@ logs:
 	@docker logs --tail=200 arescore-foundry-opa-1 || true
 	@docker logs --tail=200 arescore-foundry-orchestrator-1 || true
 
+opa-test:
+	docker run --rm -v "$(PWD)/policies":/policies:ro openpolicyagent/opa:1.10.0 test /policies -v

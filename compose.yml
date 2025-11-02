@@ -20,10 +20,11 @@ x-security: &default-security
 
 services:
   opa:
-    image: openpolicyagent/opa:0.67.0
-    command: ["run","--server","--addr","0.0.0.0:8181","--log-level=info","/policies"]
+    image: openpolicyagent/opa@sha256:2d2a9a3d3b...   # replace with the digest you’ve been using
+    command: ["run", "--server", "/policies"]
     volumes:
       - ./policies:/policies:ro
+    read_only: true
     ports:
       - "127.0.0.1:8181:8181"
     healthcheck:
