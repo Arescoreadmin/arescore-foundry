@@ -122,11 +122,11 @@ fix:
 	$(call _header,Auto-fix compose + OPA wiring)
 	@sudo -E BASE=$(BASE) ENV_FILE=$(ENV_FILE) bash scripts/foundry_autofix.sh
 
-# Back-compat: quick overlay up
-.PHONY: release overlay-smoke
 
+.PHONY: release
 release:
 	@bash scripts/prod_release_final.sh
 
+.PHONY: overlay-smoke
 overlay-smoke:
-	@bash scripts/smoke_overlay.sh
+	bash ./scripts/smoke_overlay.sh
