@@ -1,39 +1,18 @@
-name: smoke
+name: Overlay Smoke
+
 on:
   pull_request:
-  push:
-    branches: [ feat/federated-spine-mvp ]
+    paths:
+      - "services/**"
+      - "policies/**"
+      - "scripts/smoke_overlay.sh"
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: OPA policy tests
-        run: |
-          docker run --rm -v "$PWD/policies":/policies:ro openpolicyagent/opa:1.10.0 test /policies -v
-
-      - name: Build images
-        run: |
-          docker compose -f compose.yml build
-
-      - name: Bring stack up (detached)
-        run: |
-          docker compose -f compose.yml up -d
-
-      - name: Wait for OPA to be healthy
-        run: |
-          # Replace URL/port if your OPA isn't exposed; otherwise eval via docker exec
-          docker ps
-          # OPA eval health (using docker exec to avoid exposing ports)
-          OPA_CID="$(docker ps --filter name=opa --format '{{.ID}}' | head -n1)"
-          test -n "$OPA_CID"
-          docker exec "$OPA_CID" opa eval '1 == 1'
-
-      - name: Orchestrator round-trip smoke
-        run: |
-          # crude ping; adjust if your orchestrator has /health
-          ORCH_CID="$(docker ps --filter name=orchestrator --format '{{.ID}}' | head -n1)"
-          test -n "$ORCH_CID"
-          docker exec "$ORCH_CID" curl -sf http://127.0.0.1:8080/health
+      - name: Set up Docker Compose
+        run: sudo apt-get update && sudo apt-get install -y docker-compose
+      - name: Run overlay smoke
+        run: bash scripts/smoke_overlay.sh

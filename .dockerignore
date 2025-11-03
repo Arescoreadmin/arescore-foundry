@@ -1,5 +1,6 @@
-.git
-.venv
-__pycache__/
-*.pyc
-policies/_misc/
+**/__pycache__/
+**/*.pyc
+.venv/
+.git/
+.gitignore
+README.md

@@ -1,33 +1,38 @@
 services:
   opa:
     image: openpolicyagent/opa@sha256:c0814ce7811ecef8f1297a8e55774a1d5422e5c18b996b665acbc126124fab19
-    command: ["run", "--server", "/policies"]
+    command:
+    - run
+    - --server
+    - /policies
     volumes:
-      - ./policies:/policies:ro
+    - ./policies:/policies:ro
     read_only: true
     healthcheck:
-      test: ["CMD", "opa", "eval", "1==1"]
+      test:
+      - CMD
+      - opa
+      - eval
+      - 1==1
       interval: 10s
       timeout: 3s
       retries: 5
     restart: unless-stopped
-
   orchestrator:
     build:
       context: .
       dockerfile: services/orchestrator/Dockerfile
     depends_on:
-      opa:
-        condition: service_started
+    - opa
     ports:
-      - "8080:8080"
+    - 8080:8080
     restart: unless-stopped
-
+  consent_registry:
+    depends_on: []
+  evidence_bundler:
+    depends_on: []
   spawn_service:
     build:
       context: .
       dockerfile: services/spawn_service/Dockerfile
-    depends_on:
-      orchestrator:
-        condition: service_started
-    restart: unless-stopped
+    depends_on: []

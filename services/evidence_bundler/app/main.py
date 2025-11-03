@@ -1,12 +1,16 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
-import uuid
-app = FastAPI()
+
+app = FastAPI(title="{{SERVICE_NAME}}".replace("{{SERVICE_NAME}}", __name__.split(".")[0]))
+
 @app.get("/health")
-def health(): return {"ok": True}
-class Evidence(BaseModel):
-    run_id: str | None = None
-    notes: str | None = None
-@app.post("/evidence")
-def add_evidence(ev: Evidence):
-    return {"evidence_id": str(uuid.uuid4()), "received": ev.model_dump()}
+def health():
+    return {"ok": True}
+
+@app.get("/live")
+def live():
+    return {"status": "alive"}
+
+@app.get("/ready")
+def ready():
+    # future: check dependencies here (DB, message bus, etc.)
+    return {"status": "ready"}
