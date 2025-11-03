@@ -1,5 +1,5 @@
 services:
   orchestrator:
-    image: ghcr.io/${GITHUB_REPOSITORY,,}/orchestrator:latest
+    image: ghcr.io/${GITHUB_REPOSITORY_LC}/orchestrator:latest
   spawn_service:
-    image: ghcr.io/${GITHUB_REPOSITORY,,}/spawn_service:latest
+    image: ghcr.io/${GITHUB_REPOSITORY_LC}/spawn_service:latest

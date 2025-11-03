@@ -1,0 +1,13 @@
+/policies/tests.rego:
+data.policies_test.test_bad_model_hash_denied: PASS (353.512µs)
+data.policies_test.test_consent_allows_with_valid_token: PASS (477.334µs)
+data.policies_test.test_runtime_allows_when_good: PASS (537.156µs)
+data.policies_test.test_crl_denies_revoked_cert: PASS (851.825µs)
+data.policies_test.test_empty_sig_denied: PASS (969.186µs)
+data.policies_test.test_consent_required_denies_without_token: PASS (1.141609ms)
+
+/policies/training_gate_test.rego:
+data.training_gate_test.test_training_gate_allows: PASS (312.305µs)
+data.training_gate_test.test_training_gate_denies_if_missing_fields: PASS (1.306577ms)
+--------------------------------------------------------------------------------
+PASS: 8/8
