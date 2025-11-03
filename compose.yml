@@ -27,10 +27,6 @@ services:
     ports:
     - 8080:8080
     restart: unless-stopped
-  consent_registry:
-    depends_on: []
-  evidence_bundler:
-    depends_on: []
   spawn_service:
     build:
       context: .
