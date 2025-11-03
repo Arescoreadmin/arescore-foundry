@@ -54,8 +54,8 @@ jobs:
         run: |
           set -euo pipefail
           if [ -d policies ]; then
-            docker run --rm -v "$PWD/policies:/policies:ro" openpolicyagent/opa:0.67.0 check /policies
-            docker run --rm -v "$PWD/policies:/policies:ro" openpolicyagent/opa:0.67.0 test /policies
+            docker run --rm -v "$PWD/policies:/policies:ro" openpolicyagent/opa:1.10.0 check /policies
+            docker run --rm -v "$PWD/policies:/policies:ro" openpolicyagent/opa:1.10.0 test /policies
           else
             echo "No policies/ directory; skipping OPA gate."
           fi

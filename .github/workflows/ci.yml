@@ -34,10 +34,10 @@ jobs:
       - name: OPA lint & tests
         run: |
           docker run --rm -v "$PWD/policies:/policies:ro" \
-            openpolicyagent/opa:0.67.0@sha256:3b59c5dd0e6f7f9a5a31f7af64b2b1f1a5d7e141b9f0d2a8f9d2f0c1a6b9e7c3 \
+            openpolicyagent/opa:1.10.0 \
             check /policies
           docker run --rm -v "$PWD/policies:/policies:ro" \
-            openpolicyagent/opa:0.67.0@sha256:3b59c5dd0e6f7f9a5a31f7af64b2b1f1a5d7e141b9f0d2a8f9d2f0c1a6b9e7c3 \
+            openpolicyagent/opa:1.10.0 \
             test -v /policies
 
   build-and-push:
