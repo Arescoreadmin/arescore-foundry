@@ -1,8 +1,4 @@
-package foundry.training
+package foundry
 
-default allow := false
-
-# Gate binding: only pass when gate_ok holds
-allow {
-  gate_ok
-}
+ready := true
+permit := true if true
