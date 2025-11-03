@@ -111,7 +111,7 @@ logs:
 	@docker logs --tail=200 arescore-foundry-evidence_bundler-1 || true
 	@docker logs --tail=200 arescore-foundry-spawn_service-1 || true
 
-# ----- Smokes & maintenance -----
+# ----PHO- Smokes & maintenance -----
 .PHONY: smoke
 smoke: up
 	$(call _header,Overlay smoke)
@@ -130,3 +130,17 @@ release:
 .PHONY: overlay-smoke
 overlay-smoke:
 	bash ./scripts/smoke_overlay.sh
+
+.PHONY: sbom
+sbom:
+	@PROJECT_NAME=arescore-foundry \
+	 COMPOSE_FILES="-f compose.yml -f compose.federated.yml" \
+	 ARTIFACT_DIR="artifacts" \
+	 bash scripts/report_sbom.sh && echo "SBOMs ready in artifacts/"
+
+.PHONY: release sbom
+release:
+	@bash scripts/prod_release_final.sh
+
+sbom:
+	@ARTIFACT_DIR="artifacts" COMPOSE_FILES="-f compose.yml -f compose.federated.yml" bash scripts/report_sbom.sh && echo "SBOMs in ./artifacts"

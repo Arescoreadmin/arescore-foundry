@@ -169,3 +169,9 @@ else
 fi
 
 ok "All green ✅"
+
+echo "==> Producing SBOMs + digest report"
+ARTIFACT_DIR="${ARTIFACT_DIR:-artifacts}" \
+COMPOSE_FILES="-f compose.yml -f compose.federated.yml" \
+bash scripts/report_sbom.sh
+echo "==> Artifacts ready in ./artifacts"
