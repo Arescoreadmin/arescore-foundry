@@ -83,3 +83,22 @@ jobs:
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "SBOMs are attached as artifacts." >> $GITHUB_STEP_SUMMARY
+      # BEGIN: SBOM UPLOAD STEPS (auto-injected)
+      - name: Upload digests
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests
+          path: artifacts/digests.txt
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sboms
+          path: artifacts/sbom-*.spdx.json
+
+      - name: Upload SBOM index
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-index
+          path: artifacts/SBOM_INDEX.md
+      # END: SBOM UPLOAD STEPS (auto-injected)
