@@ -104,15 +104,20 @@ jobs:
 
       - name: Job summary
         run: |
-          echo "## Staging Auto-Release ✅" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Images & digests**:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat artifacts/digests/images.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "SBOMs are attached as artifacts." >> $GITHUB_STEP_SUMMARY
+          echo "## Staging Auto-Release ✅" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Images & digests**:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f artifacts/digests.txt ]; then
+            cat artifacts/digests.txt >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No digests.txt found (SBOM step may have failed)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "SBOMs are attached as artifacts." >> "$GITHUB_STEP_SUMMARY"
+
       # BEGIN: SBOM UPLOAD STEPS (auto-injected)
       - name: Upload digests
         uses: actions/upload-artifact@v4
