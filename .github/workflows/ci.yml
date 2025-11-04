@@ -55,10 +55,10 @@ jobs:
 
       - name: Build & push orchestrator
         run: |
-          IMAGE_PREFIX=ghcr.io/${{ github.repository }}
-          docker build -t $IMAGE_PREFIX/orchestrator:latest ./services/orchestrator
+          IMAGE_PREFIX=ghcr.io/arescoreadmin/arescore-foundry
+          docker build -t $IMAGE_PREFIX/orchestrator:latest \
+            -f services/orchestrator/Dockerfile .
           docker push $IMAGE_PREFIX/orchestrator:latest
-
       - name: Build & push spawn_service
         run: |
           IMAGE_PREFIX=ghcr.io/${{ github.repository }}

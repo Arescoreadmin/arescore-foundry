@@ -70,4 +70,4 @@ jobs:
         run: |
           docker build --progress=plain \
             -t local/orchestrator:test \
-            ./services/orchestrator
+            -f services/orchestrator/Dockerfile .
