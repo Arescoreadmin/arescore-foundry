@@ -1,0 +1,28 @@
+services:
+  fl_coordinator:
+    build:
+      context: .
+      dockerfile: services/fl_coordinator/Dockerfile
+    depends_on:
+    - orchestrator
+    ports:
+    - 9092:8080
+    restart: unless-stopped
+  consent_registry:
+    build:
+      context: .
+      dockerfile: services/consent_registry/Dockerfile
+    depends_on:
+    - orchestrator
+    ports:
+    - 9093:8080
+    restart: unless-stopped
+  evidence_bundler:
+    build:
+      context: .
+      dockerfile: services/evidence_bundler/Dockerfile
+    depends_on:
+    - orchestrator
+    ports:
+    - 9094:8080
+    restart: unless-stopped

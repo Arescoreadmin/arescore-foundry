@@ -1,0 +1,10 @@
+name: policy
+on:
+  pull_request:
+jobs:
+  rego-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: OPA tests
+        run: docker run --rm -v "$PWD/policies:/policies:ro" openpolicyagent/opa:1.10.0 test -v /policies

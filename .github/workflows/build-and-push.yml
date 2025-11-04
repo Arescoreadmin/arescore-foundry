@@ -29,31 +29,23 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Show workspace and Dockerfile
+      # Lowercase owner for GHCR; expose as 'steps.lc.outputs.owner'
+      - name: Compute lowercase owner
+        id: lc
+        shell: bash
         run: |
-          set -euo pipefail
-          pwd
-          ls -al .
-          echo "infra/"; ls -al infra || true
-          echo "::group::Dockerfile"
-          sed -n '1,120p' infra/sentinelcore.Dockerfile || true
-          echo "::endgroup::"
+          owner="${{ github.repository_owner }}"
+          owner_lc="$(echo "$owner" | tr '[:upper:]' '[:lower:]')"
+          echo "owner=$owner_lc" >> "$GITHUB_OUTPUT"
 
-      # Compute a guaranteed-lowercase owner and a single tag string
-      - name: Compute image tag
+      # Optional: single deterministic PR tag for easy debug on PRs
+      - name: Compute PR tag
         id: tag
         shell: bash
         run: |
-          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          PRNUM="${{ github.event.number }}"
-          if [ -z "$PRNUM" ] || [ "$PRNUM" = "0" ]; then PRNUM="manual"; fi
-          IMAGE_TAG="ghcr.io/${OWNER_LOWER}/sentinelcore:pr-${PRNUM}"
-          echo "IMAGE_TAG=${IMAGE_TAG}" | tee -a "$GITHUB_ENV"
-          # hard fail if anything uppercase sneaks in
-          if [ "$IMAGE_TAG" != "$(echo "$IMAGE_TAG" | tr '[:upper:]' '[:lower:]')" ]; then
-            echo "Tag is not lowercase: $IMAGE_TAG" >&2
-            exit 1
-          fi
+          pr="${{ github.event.number }}"
+          if [ -z "$pr" ] || [ "$pr" = "0" ]; then pr="manual"; fi
+          echo "pr_tag=ghcr.io/${{ steps.lc.outputs.owner }}/sentinelcore:pr-${pr}" >> "$GITHUB_OUTPUT"
 
       - name: Login to GHCR
         if: github.event_name == 'push'
@@ -63,10 +55,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Build (PR) or Build+Push (push)
       - name: Build (PR) or Build+Push (push)
         uses: docker/build-push-action@v6
         with:
           context: .
           file: infra/sentinelcore.Dockerfile
           push: ${{ github.event_name == 'push' }}
-          tags: ${{ env.IMAGE_TAG }}
+          # Unified tag strategy:
+          # - Always build PR tag (for local caching/consistency)
+          # - Also stamp commit tag on pushes
+          # - Also stamp :latest only when branch == main
+          tags: |
+            ${{ steps.tag.outputs.pr_tag }}
+            ghcr.io/${{ steps.lc.outputs.owner }}/sentinelcore:commit-${{ github.sha }}
+            ${{ github.ref == 'refs/heads/main' && format('ghcr.io/{0}/sentinelcore:latest', steps.lc.outputs.owner) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

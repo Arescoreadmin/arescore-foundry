@@ -15,7 +15,8 @@ services:
   log_indexer:
     <<: *svc_defaults
     build:
-      context: ../backend/log_indexer
+      context: ../services/orchestrator
+      dockerfile: Dockerfile
     container_name: log_indexer
     ports:
       - "9000:9000"
@@ -33,34 +34,31 @@ services:
   orchestrator:
     <<: *svc_defaults
     build:
-      context: ../backend/orchestrator
+      context: ../services/orchestrator
+      dockerfile: Dockerfile
     container_name: orchestrator
     depends_on:
       log_indexer:
         condition: service_healthy
     # Expose orchestrator on host :8010 to avoid clashing with sentinelcore
     ports:
-      - "8010:8000"
+      - "8080:8080"
     environment:
       PYTHONPATH: /app:/app/app
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "python -c \"import urllib.request,sys; urllib.request.urlopen('http://localhost:8000/health'); sys.exit(0)\" || exit 1",
-        ]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-      start_period: 15s
+       test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; import json\nu='http://127.0.0.1:8080/health'\ntry:\n  d=json.loads(urllib.request.urlopen(u,timeout=2).read().decode())\n  sys.exit(0 if d.get('ok') else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
+       interval: 15s
+       timeout: 5s
+       retries: 5
+       start_period: 5s
 
   # ---------- Sentinel Stack ----------
   # SentinelCore — single source of truth on port 8000 (fixed)
   sentinelcore:
     <<: *svc_defaults
     build:
-      context: ..
-      dockerfile: infra/sentinelcore.Dockerfile
+      context: ../services/orchestrator
+      dockerfile: Dockerfile
     container_name: sentinelcore
     depends_on:
       log_indexer:
@@ -68,7 +66,7 @@ services:
       orchestrator:
         condition: service_healthy
     ports:
-      - "8000:8000"   # canonical owner of host:8000
+      - "8080:8080"   # canonical owner of host:8000
     environment:
       PYTHONUNBUFFERED: "1"
       PYTHONPATH: /app:/app/app
@@ -91,7 +89,8 @@ services:
   sentinelred:
     <<: *svc_defaults
     build:
-      context: ../backend/sentinelred
+      context: ../services/orchestrator
+      dockerfile: Dockerfile
     container_name: sentinelred
     depends_on:
       log_indexer:
@@ -114,7 +113,8 @@ services:
   mutation_engine:
     <<: *svc_defaults
     build:
-      context: ../backend/mutation_engine
+      context: ../services/orchestrator
+      dockerfile: Dockerfile
     container_name: mutation_engine
     depends_on:
       log_indexer:
@@ -137,7 +137,8 @@ services:
   behavior_analytics:
     <<: *svc_defaults
     build:
-      context: ../backend/behavior_analytics
+      context: ../services/orchestrator
+      dockerfile: Dockerfile
     container_name: behavior_analytics
     depends_on:
       log_indexer:
