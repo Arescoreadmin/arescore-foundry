@@ -21,7 +21,7 @@ services:
   orchestrator:
     depends_on:
       opa:
-        condition: service_healthy
+        condition: service_started
     networks:
     - foundry_net
 networks:
