@@ -103,16 +103,28 @@ jobs:
           if-no-files-found: error
 
       - name: Job summary
+        shell: bash
         run: |
-          echo "## Staging Auto-Release ✅" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Images & digests**:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat artifacts/digests/images.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "SBOMs are attached as artifacts." >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+
+          echo "## Staging Auto-Release ✅" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Images & digests**:" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -f artifacts/digests/images.txt ]; then
+            cat artifacts/digests/images.txt >> "$GITHUB_STEP_SUMMARY"
+          elif [ -f artifacts/digests.txt ]; then
+            cat artifacts/digests.txt >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "(no digests file found)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "SBOMs are attached as artifacts." >> "$GITHUB_STEP_SUMMARY"
+
       # BEGIN: SBOM UPLOAD STEPS (auto-injected)
       - name: Upload digests
         uses: actions/upload-artifact@v4
