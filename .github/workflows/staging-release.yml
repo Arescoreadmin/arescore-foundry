@@ -21,6 +21,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Compute lowercase repo
+        id: lc
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER}"
+          owner_lc="$(echo "$owner" | tr '[:upper:]' '[:lower:]')"
+          echo "GITHUB_REPOSITORY_LC=$owner_lc/$(basename $GITHUB_REPOSITORY)" >> "$GITHUB_ENV"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -28,6 +35,22 @@ jobs:
         run: |
           docker version
           docker compose version
+
+      - name: Normalize repository casing for GHCR
+        id: repo_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo_lc="${GITHUB_REPOSITORY,,}"
+
+          {
+            printf 'GITHUB_REPOSITORY_LC=%s\n' "$repo_lc"
+            printf 'IMAGE_PREFIX=ghcr.io/%s\n' "$repo_lc"
+          } >> "$GITHUB_ENV"
+
+          printf 'repo_lc=%s\n' "$repo_lc" >> "$GITHUB_OUTPUT"
+
 
       - name: OPA unit tests (policies)
         run: |
@@ -40,17 +63,29 @@ jobs:
           docker compose -f compose.yml -f compose.federated.yml build
 
       - name: Bring up stack with staging overlay
+        shell: bash
         env:
-          # Set any staging-specific env here if needed:
-          # EXAMPLE_VAR: "value"
-          # Your scripts already pin OPA digest and normalize compose.
-          PROD_USE_STAGING: "1"
+          # Raw repo path from GitHub, e.g. "Arescoreadmin/arescore-foundry"
+          GITHUB_REPOSITORY_RAW: ${{ github.repository }}
         run: |
+          set -euo pipefail
+
+          # Lowercase owner/repo for GHCR and Compose
+          repo_lc="$(echo "${GITHUB_REPOSITORY_RAW}" | tr '[:upper:]' '[:lower:]')"
+
+          # Export the vars your compose files expect
+          export GITHUB_REPOSITORY_LCV="$repo_lc"
+          export IMAGE_PREFIX="ghcr.io/${repo_lc}"
+
+          echo "GITHUB_REPOSITORY_LCV=${GITHUB_REPOSITORY_LCV}"
+          echo "IMAGE_PREFIX=${IMAGE_PREFIX}"
+
           # Include compose.staging.yml if it exists — otherwise just base+fed
           files="-f compose.yml -f compose.federated.yml"
           if [ -f compose.staging.yml ]; then
             files="$files -f compose.staging.yml"
           fi
+
           docker compose $files up -d
 
       - name: Overlay smoke
