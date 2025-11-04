@@ -16,4 +16,6 @@ jobs:
               eval -b /policies --stdin-input 'data.foundry.training.allow' >/dev/null
 
       - name: Build orchestrator
-        run: docker build -t local/orchestrator:test ./services/orchestrator
+        run: |
+          docker build -t local/orchestrator:test \
+            -f services/orchestrator/Dockerfile .
