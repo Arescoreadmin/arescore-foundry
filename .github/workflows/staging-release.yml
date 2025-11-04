@@ -103,17 +103,24 @@ jobs:
           if-no-files-found: error
 
       - name: Job summary
+        shell: bash
         run: |
+          set -euo pipefail
+
           echo "## Staging Auto-Release ✅" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**Images & digests**:" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          if [ -f artifacts/digests.txt ]; then
+
+          if [ -f artifacts/digests/images.txt ]; then
+            cat artifacts/digests/images.txt >> "$GITHUB_STEP_SUMMARY"
+          elif [ -f artifacts/digests.txt ]; then
             cat artifacts/digests.txt >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "No digests.txt found (SBOM step may have failed)." >> "$GITHUB_STEP_SUMMARY"
+            echo "(no digests file found)" >> "$GITHUB_STEP_SUMMARY"
           fi
+
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "SBOMs are attached as artifacts." >> "$GITHUB_STEP_SUMMARY"
