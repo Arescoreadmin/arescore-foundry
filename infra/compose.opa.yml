@@ -1,31 +1,28 @@
 services:
   opa:
     image: openpolicyagent/opa:0.67.0
-    command: ["run","--server","--log-level=info","/policies"]
+    command:
+    - run
+    - --server
+    - --log-level=info
+    - /policies
     volumes:
-      - ../policies:/policies:ro
+    - ../policies:/policies:ro
     ports:
-      - "8181:8181"
-    healthcheck:
-      test: ["CMD","wget","-qO-","http://127.0.0.1:8181/"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
+    - 8181:8181
     restart: unless-stopped
     read_only: true
-    cap_drop: ["ALL"]
+    cap_drop:
+    - ALL
     security_opt:
-      - no-new-privileges:true
+    - no-new-privileges:true
     networks:
-      - foundry_net
-
+    - foundry_net
   orchestrator:
     depends_on:
       opa:
-        condition: service_healthy
+        condition: service_started
     networks:
-      - foundry_net
-
+    - foundry_net
 networks:
   foundry_net: {}
