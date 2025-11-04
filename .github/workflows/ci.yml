@@ -1,66 +1,87 @@
-# .github/workflows/ci.yml
 name: CI
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - 'policies/**'
-      - '.github/workflows/**'
-      - 'services/**'
-      - 'compose.yml'
+    branches:
+      - main
+      - feat/**
+      - chore/**
   pull_request:
-    paths:
-      - 'policies/**'
-      - 'services/**'
-      - 'compose.yml'
-  workflow_dispatch:
+    branches:
+      - main
 
 permissions:
   contents: read
-  packages: read
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  packages: write
 
 jobs:
   policy-check:
+    name: OPA policy checks
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
-      - name: OPA lint & tests
+      - name: Run OPA unit tests (test -v)
         run: |
-          docker run --rm -v "$PWD/policies:/policies:ro" \
-            openpolicyagent/opa:1.10.0 \
-            check /policies
-          docker run --rm -v "$PWD/policies:/policies:ro" \
+          docker run --rm \
+            -v "$PWD/policies:/policies:ro" \
             openpolicyagent/opa:1.10.0 \
             test -v /policies
 
-  build-and-push:
+      - name: Validate training gate entrypoint
+        run: |
+          printf '%s' '{"metadata":{"labels":["class:netplus"]},"limits":{"attacker_max_exploits":0},"network":{"egress":"deny"}}' \
+          | docker run --rm -i \
+              -v "$PWD/policies":/policies:ro \
+              openpolicyagent/opa:1.10.0 \
+              eval -b /policies --stdin-input 'data.foundry.training.allow' \
+              >/dev/null
+
+  build-services:
+    name: Build (and optionally push) service images
     runs-on: ubuntu-latest
-    needs: [policy-check]   # <- hard gate
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      packages: write
+    needs: policy-check
+    strategy:
+      matrix:
+        service: [orchestrator, spawn_service]
+
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_REPO: arescore-foundry
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Compute lowercase owner
+        id: lc
+        shell: bash
+        run: |
+          owner="${{ github.repository_owner }}"
+          owner_lc="$(echo "$owner" | tr '[:upper:]' '[:lower:]')"
+          echo "owner=$owner_lc" >> "$GITHUB_OUTPUT"
 
-      - name: Build & push orchestrator
-        run: |
-          IMAGE_PREFIX=ghcr.io/arescoreadmin/arescore-foundry
-          docker build -t $IMAGE_PREFIX/orchestrator:latest \
-            -f services/orchestrator/Dockerfile .
-          docker push $IMAGE_PREFIX/orchestrator:latest
-      - name: Build & push spawn_service
-        run: |
-          IMAGE_PREFIX=ghcr.io/${{ github.repository }}
-          docker build -t $IMAGE_PREFIX/spawn_service:latest ./services/spawn_service
-          docker push $IMAGE_PREFIX/spawn_service:latest
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build service image (PR builds only, pushes on branch)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: services/${{ matrix.service }}/Dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.lc.outputs.owner }}/${{ env.IMAGE_REPO }}:${{ matrix.service }}-commit-${{ github.sha }}
+            ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && format('{0}/{1}/{2}:{3}-latest', env.REGISTRY, steps.lc.outputs.owner, env.IMAGE_REPO, matrix.service) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
