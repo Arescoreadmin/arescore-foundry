@@ -70,15 +70,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Lowercase owner/repo for GHCR and Compose
-          repo_lc="$(echo "${GITHUB_REPOSITORY_RAW}" | tr '[:upper:]' '[:lower:]')"
-
-          # Export the vars your compose files expect
+          # Lowercase repo owner/name for GHCR (required)
+          repo_lc="$(printf '%s' "$GITHUB_REPOSITORY_RAW" | tr '[:upper:]' '[:lower:]')"
           export GITHUB_REPOSITORY_LCV="$repo_lc"
           export IMAGE_PREFIX="ghcr.io/${repo_lc}"
-
-          echo "GITHUB_REPOSITORY_LCV=${GITHUB_REPOSITORY_LCV}"
-          echo "IMAGE_PREFIX=${IMAGE_PREFIX}"
 
           # Include compose.staging.yml if it exists — otherwise just base+fed
           files="-f compose.yml -f compose.federated.yml"
