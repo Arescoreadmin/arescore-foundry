@@ -1,10 +1,13 @@
 services:
+  # No spawn_service in single-site mode
   spawn_service:
     deploy:
       replicas: 0
+
   fl_coordinator:
     environment:
       - SITE_MODE=single
+
   orchestrator:
     environment:
       - SITE_MODE=single
