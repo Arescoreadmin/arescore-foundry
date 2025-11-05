@@ -1,4 +1,4 @@
-# scripts/sentinelcore_fixit.sh
+# scripts/frostgatecore_fixit.sh
 #!/usr/bin/env bash
 # Make tests sane, enable dev routes, rebuild, auto-detect /dev/* endpoints by probing, then run pytest.
 set -eo pipefail
@@ -10,15 +10,15 @@ cd "$ROOT"
 
 # ---------------------------- tests & pytest.ini ----------------------------
 say "Writing pytest.ini so pytest stops playing hide-and-seek…"
-mkdir -p backend/sentinelcore/Tests
+mkdir -p backend/frostgatecore/Tests
 cat > pytest.ini <<'INI'
 [pytest]
-pythonpath = backend/sentinelcore
-testpaths  = backend/sentinelcore/Tests
+pythonpath = backend/frostgatecore
+testpaths  = backend/frostgatecore/Tests
 INI
 
 say "Overwriting minimal robust tests…"
-cat > backend/sentinelcore/Tests/test_api.py <<'PY'
+cat > backend/frostgatecore/Tests/test_api.py <<'PY'
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -43,7 +43,7 @@ def test_embed_and_query_cache_behave():
     assert _scrub(q1.json()) == _scrub(q2.json())
 PY
 
-cat > backend/sentinelcore/Tests/test_rag_cache.py <<'PY'
+cat > backend/frostgatecore/Tests/test_rag_cache.py <<'PY'
 from app.rag_cache import cached_embed, cached_query_topk
 
 def test_embed_normalizes_whitespace():
@@ -63,7 +63,7 @@ def test_query_ttl_hit():
     assert calls["n"] == 1
 PY
 
-cat > backend/sentinelcore/Tests/test_api_contract.py <<'PY'
+cat > backend/frostgatecore/Tests/test_api_contract.py <<'PY'
 import os, time, httpx
 BASE = os.getenv("BASE_URL","http://localhost:8000")
 def wait_healthy(timeout=30):
@@ -88,14 +88,14 @@ say "Writing compose override to enable dev routes inside the container…"
 mkdir -p infra
 cat > infra/compose.dev.routes.override.yml <<'YML'
 services:
-  sentinelcore:
+  frostgatecore:
     environment:
       ENABLE_DEV_ROUTES: "1"
 YML
 
 # ---------------------------- rebuild & health ----------------------------
-say "Rebuilding and restarting sentinelcore with override…"
-docker compose -f infra/docker-compose.yml -f infra/compose.dev.routes.override.yml up -d --build --force-recreate --no-deps sentinelcore
+say "Rebuilding and restarting frostgatecore with override…"
+docker compose -f infra/docker-compose.yml -f infra/compose.dev.routes.override.yml up -d --build --force-recreate --no-deps frostgatecore
 
 say "Waiting for /health…"
 for i in {1..60}; do
@@ -121,7 +121,7 @@ for p, methods in doc.get("paths",{}).items():
 PY
 )
 
-readarray -t AR < <(docker exec -i sentinelcore python - <<'PY' 2>/dev/null || true
+readarray -t AR < <(docker exec -i frostgatecore python - <<'PY' 2>/dev/null || true
 from importlib import import_module
 try:
     app = import_module("app.main").app

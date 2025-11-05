@@ -61,7 +61,7 @@ def main():
     # VALID YAML: use a block scalar for the python -c program as the last list item.
     override_body = textwrap.dedent("""\
     services:
-      sentinelcore:
+      frostgatecore:
         healthcheck:
           test:
             - CMD
@@ -89,15 +89,15 @@ def main():
         "docker","compose",
         "-f", base,
         "-f", override,
-        "up","-d","--build","--force-recreate","--no-deps","sentinelcore"
+        "up","-d","--build","--force-recreate","--no-deps","frostgatecore"
     ], cwd=root)
 
-    if not wait_healthy("sentinelcore", timeout=120):
-        docker_health_logs("sentinelcore")
-        print("\nStill not healthy. Check app logs:\n  docker logs sentinelcore --since=3m")
+    if not wait_healthy("frostgatecore", timeout=120):
+        docker_health_logs("frostgatecore")
+        print("\nStill not healthy. Check app logs:\n  docker logs frostgatecore --since=3m")
         sys.exit(1)
 
-    docker_health_logs("sentinelcore")
+    docker_health_logs("frostgatecore")
 
     # In-container probe without heredoc
     probe_code = (
@@ -105,7 +105,7 @@ def main():
         "r=u.urlopen('http://localhost:8001/health',timeout=2); "
         "print('status:', r.status, 'body:', r.read())"
     )
-    run_list(["docker","exec","-i","sentinelcore","python","-c",probe_code])
+    run_list(["docker","exec","-i","frostgatecore","python","-c",probe_code])
 
     # Try to nudge RAG caches; tolerate missing requests/curl.
     try:
@@ -137,7 +137,7 @@ def main():
 
     # Show last RAGCACHE hits if present
     try:
-        out = run_list(["docker","logs","sentinelcore","--since=2m"], capture=True)
+        out = run_list(["docker","logs","frostgatecore","--since=2m"], capture=True)
         lines = [ln for ln in out.splitlines() if "RAGCACHE " in ln]
         if lines:
             print("\nRAGCACHE recent:\n" + "\n".join(lines[-10:]))

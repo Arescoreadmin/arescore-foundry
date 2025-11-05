@@ -4,8 +4,8 @@ import ReactDOM from 'react-dom/client';
 function App() {
   return (
     <div>
-      <h1>Sentinel Foundry Dashboard</h1>
-      <p>Welcome to the Sentinel Foundry frontend!</p>
+      <h1>FrostGate Foundry Dashboard</h1>
+      <p>Welcome to the FrostGate Foundry frontend!</p>
     </div>
   );
 }

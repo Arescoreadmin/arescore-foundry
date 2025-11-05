@@ -4,11 +4,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ROOT / "infra" / "docker-compose.yml"
-SERVICE = "sentinelcore"
-RAG_DIR = ROOT / "backend" / "sentinelcore" / "app" / "rag_cache"
+SERVICE = "frostgatecore"
+RAG_DIR = ROOT / "backend" / "frostgatecore" / "app" / "rag_cache"
 INIT_BAD = RAG_DIR / "_init_.py"
 INIT_GOOD = RAG_DIR / "__init__.py"
-MAIN_PY = ROOT / "backend" / "sentinelcore" / "app" / "main.py"
+MAIN_PY = ROOT / "backend" / "frostgatecore" / "app" / "main.py"
 
 def sh(cmd, check=True):
     print(f"==> $ {' '.join(cmd)}")

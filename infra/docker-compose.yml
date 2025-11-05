@@ -40,7 +40,7 @@ services:
     depends_on:
       log_indexer:
         condition: service_healthy
-    # Expose orchestrator on host :8010 to avoid clashing with sentinelcore
+    # Expose orchestrator on host :8010 to avoid clashing with frostgatecore
     ports:
       - "8080:8080"
     environment:
@@ -52,14 +52,14 @@ services:
        retries: 5
        start_period: 5s
 
-  # ---------- Sentinel Stack ----------
-  # SentinelCore — single source of truth on port 8000 (fixed)
-  sentinelcore:
+  # ---------- FrostGate Stack ----------
+  # FrostGateCore — single source of truth on port 8000 (fixed)
+  frostgatecore:
     <<: *svc_defaults
     build:
       context: ../services/orchestrator
       dockerfile: Dockerfile
-    container_name: sentinelcore
+    container_name: frostgatecore
     depends_on:
       log_indexer:
         condition: service_healthy
@@ -78,7 +78,7 @@ services:
       # MODEL_NAME: local-dev-model
       # ROOT_PATH: ""
     volumes:
-      - ./backend/sentinelcore/data:/app/data
+      - ./backend/frostgatecore/data:/app/data
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2); sys.exit(0)"]
       interval: 5s

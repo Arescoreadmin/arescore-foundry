@@ -44,7 +44,7 @@ def main():
 
     override = textwrap.dedent("""\
     services:
-      sentinelcore:
+      frostgatecore:
         healthcheck:
           test: ["CMD", "python", "-c", "import json,sys,urllib.request; u='http://localhost:8001/health';\\ntry:\\n r=urllib.request.urlopen(u,timeout=2); d=json.loads(r.read() or b'{}'); sys.exit(0 if d.get('ok') else 1)\\nexcept Exception:\\n sys.exit(1)"]
           interval: 10s
@@ -57,10 +57,10 @@ def main():
         f.write(override)
     print("Wrote override:", override_path)
 
-    up_cmd = f'docker compose -f "{base_compose}" -f "{override_path}" up -d --build --force-recreate --no-deps sentinelcore'
+    up_cmd = f'docker compose -f "{base_compose}" -f "{override_path}" up -d --build --force-recreate --no-deps frostgatecore'
     run(up_cmd, cwd=repo)
 
-    name = "sentinelcore"
+    name = "frostgatecore"
     deadline = time.time() + 180
     last = None
     while time.time() < deadline:
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\nInterrupted. Check status with:\n  docker inspect --format \"{{.State.Health.Status}}\" sentinelcore")
+        print("\nInterrupted. Check status with:\n  docker inspect --format \"{{.State.Health.Status}}\" frostgatecore")
         sys.exit(130)
     except subprocess.CalledProcessError as e:
         print("\nCommand failed:")

@@ -45,7 +45,7 @@ jobs:
         run: |
           pr="${{ github.event.number }}"
           if [ -z "$pr" ] || [ "$pr" = "0" ]; then pr="manual"; fi
-          echo "pr_tag=ghcr.io/${{ steps.lc.outputs.owner }}/sentinelcore:pr-${pr}" >> "$GITHUB_OUTPUT"
+          echo "pr_tag=ghcr.io/${{ steps.lc.outputs.owner }}/frostgatecore:pr-${pr}" >> "$GITHUB_OUTPUT"
 
       - name: Login to GHCR
         if: github.event_name == 'push'
@@ -60,7 +60,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: infra/sentinelcore.Dockerfile
+          file: infra/frostgatecore.Dockerfile
           push: ${{ github.event_name == 'push' }}
           # Unified tag strategy:
           # - Always build PR tag (for local caching/consistency)
@@ -68,7 +68,7 @@ jobs:
           # - Also stamp :latest only when branch == main
           tags: |
             ${{ steps.tag.outputs.pr_tag }}
-            ghcr.io/${{ steps.lc.outputs.owner }}/sentinelcore:commit-${{ github.sha }}
-            ${{ github.ref == 'refs/heads/main' && format('ghcr.io/{0}/sentinelcore:latest', steps.lc.outputs.owner) || '' }}
+            ghcr.io/${{ steps.lc.outputs.owner }}/frostgatecore:commit-${{ github.sha }}
+            ${{ github.ref == 'refs/heads/main' && format('ghcr.io/{0}/frostgatecore:latest', steps.lc.outputs.owner) || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

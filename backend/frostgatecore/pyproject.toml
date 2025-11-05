@@ -1,5 +1,5 @@
 [project]
-name = "sentinelcore"
+name = "frostgatecore"
 version = "0.0.0"
 
 [build-system]

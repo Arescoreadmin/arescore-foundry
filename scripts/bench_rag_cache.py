@@ -1,6 +1,6 @@
 import os, time
 os.environ.setdefault("RAG_CACHE_URL", "sqlite:///data/rag_cache.sqlite3")
-from sentinelcore.rag_cache import Cache
+from frostgatecore.rag_cache import Cache
 
 calls = {"embed": 0}
 def slow_embed(t: str):
