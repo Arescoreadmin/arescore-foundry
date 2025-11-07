@@ -1,5 +1,10 @@
 import os, time, httpx
-BASE = os.getenv("BASE_URL","http://localhost:8000")
+
+BASE = (
+    os.getenv("FROSTGATECORE_URL") or
+    os.getenv("BASE_URL") or
+    "http://127.0.0.1:8001"
+)
 def wait_healthy(timeout=30):
     t0 = time.time()
     while time.time() - t0 < timeout:
