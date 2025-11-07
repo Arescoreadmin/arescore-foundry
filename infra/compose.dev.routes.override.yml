@@ -1,4 +1,4 @@
 services:
-  sentinelcore:
+  frostgatecore:
     environment:
       ENABLE_DEV_ROUTES: "1"

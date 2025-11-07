@@ -1,5 +1,5 @@
 import logging
-from sentinelcore.rag_cache import cached_query_topk
+from frostgatecore.rag_cache import cached_query_topk
 from orchestrator.app import current_corr_id
 
 LOG = logging.getLogger("rag.search")

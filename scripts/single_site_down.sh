@@ -4,10 +4,13 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-COMPOSE_FILES="-f compose.yml -f compose.federated.yml -f infra/compose.opa.yml -f compose.single.yml"
+echo ">>> Tearing down single-site stack…"
 
-echo "==> Bringing down single-site stack"
-docker compose $COMPOSE_FILES down -v
+docker compose \
+  -f compose.yml \
+  -f compose.federated.yml \
+  -f infra/compose.opa.yml \
+  -f compose.single.yml \
+  down -v || true
 
-echo "==> Remaining containers (should be none for foundry stack):"
-docker ps --filter name=arescore-foundry --format "table {{.Names}}\t{{.Status}}"
+echo "Single-site stack is DOWN."

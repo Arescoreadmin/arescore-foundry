@@ -1,4 +1,4 @@
-# Sentinel Foundry Starter Project
+# FrostGate Foundry Starter Project
 
 ## Getting Started
 
@@ -15,8 +15,8 @@ docker-compose up --build
 ## Services
 
 - Orchestrator: manages session and worlds
-- SentinelCore: defender AI module
-- SentinelRed: attacker AI module
+- FrostGateCore: defender AI module
+- FrostGateRed: attacker AI module
 - MutationEngine: evolves AI strategies
 - LogIndexer: central logging service
 - BehaviorAnalytics: analyzes behavior and alerts

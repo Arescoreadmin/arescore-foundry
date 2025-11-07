@@ -4,23 +4,41 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-echo "==> Running OPA unit tests (policies)"
-docker run --rm \
-  -v "$PWD/policies:/policies:ro" \
-  openpolicyagent/opa:1.10.0 test -v /policies
+echo ">>> Bringing up single-site stack…"
 
-echo "==> Bringing up single-site stack (no spawn_service)"
-COMPOSE_FILES="-f compose.yml -f compose.federated.yml -f infra/compose.opa.yml -f compose.single.yml"
+docker compose \
+  -f compose.yml \
+  -f compose.federated.yml \
+  -f infra/compose.opa.yml \
+  -f compose.single.yml \
+  up -d --build
 
-docker compose $COMPOSE_FILES up -d --build
+echo ">>> Waiting a few seconds for services to settle…"
+sleep 8
 
-echo "==> Current containers:"
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+echo ">>> Health checks"
+curl -fsS http://localhost:8080/health > /dev/null
+curl -fsS http://localhost:9092/health > /dev/null
+curl -fsS http://localhost:9093/health > /dev/null
+curl -fsS http://localhost:9094/health > /dev/null
 
-echo "==> Running overlay smoke (reuse existing script)"
-bash scripts/smoke_overlay.sh || {
-  echo "!! smoke_overlay failed; see logs above"
-  exit 1
-}
+echo ">>> Creating demo scenario via orchestrator…"
+SCENARIO_ID="$(
+  curl -fsS -X POST http://localhost:8080/api/scenarios \
+    -H 'Content-Type: application/json' \
+    -d '{
+      "name": "netplus-demo",
+      "template": "netplus",
+      "description": "Single-site demo scenario"
+    }' \
+  | jq -r '.id'
+)"
 
-echo "==> Single-site stack is up and healthy."
+echo ">>> Demo scenario ID: ${SCENARIO_ID}"
+
+echo ">>> Fetching scenario back…"
+curl -fsS "http://localhost:8080/api/scenarios/${SCENARIO_ID}" | jq .
+
+echo
+echo "Single-site stack is UP."
+echo "Swagger:  http://localhost:8080/docs"

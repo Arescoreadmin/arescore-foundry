@@ -2,7 +2,7 @@ import os
 os.environ.setdefault("RAG_CACHE_URL", "sqlite:///data/rag_cache.sqlite3")
 os.environ.setdefault("RAG_QUERY_TTL_SECONDS", "5")
 
-from sentinelcore.rag_cache import Cache
+from frostgatecore.rag_cache import Cache
 
 calls = {"ingest": 0, "embed": 0, "query": 0}
 

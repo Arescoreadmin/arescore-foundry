@@ -1,4 +1,4 @@
-# backend/sentinelcore/app/ingest.py
+# backend/frostgatecore/app/ingest.py
 import logging
 from typing import Iterable, Tuple, Optional
 

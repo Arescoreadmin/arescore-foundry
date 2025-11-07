@@ -2,7 +2,7 @@ const apiBase = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 const el = document.getElementById("app");
 el.innerHTML = `
   <main style="font-family: system-ui, sans-serif; padding: 2rem;">
-    <h1>Sentinel Foundry</h1>
+    <h1>FrostGate Foundry</h1>
     <p>Frontend is running.</p>
     <p>API base: <code>${apiBase}</code></p>
     <ul>

@@ -1,4 +1,4 @@
-# backend/sentinelcore/app/rag_cache/cache.py
+# backend/frostgatecore/app/rag_cache/cache.py
 from __future__ import annotations
 
 import os

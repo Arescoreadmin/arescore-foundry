@@ -3,10 +3,10 @@ FROM python:3.11-slim
 RUN useradd -m appuser
 WORKDIR /app
 
-COPY backend/sentinelcore/requirements.txt ./requirements.txt
+COPY backend/frostgatecore/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/sentinelcore/app/ /app/app/
+COPY backend/frostgatecore/app/ /app/app/
 
 USER appuser
 ENV HOST=0.0.0.0 PORT=8000
