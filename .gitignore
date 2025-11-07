@@ -36,3 +36,5 @@ infra/backend/
 
 # ci artifacts
 artifacts/
+audits/
+usage/
