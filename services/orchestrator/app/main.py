@@ -1,6 +1,9 @@
-from fastapi import FastAPI, HTTPException
-from typing import Any, Dict
 import uuid
+from typing import Any, Dict
+
+from fastapi import FastAPI, HTTPException
+
+from .telemetry import emit_event
 
 app = FastAPI(title="orchestrator")
 
@@ -41,6 +44,30 @@ def create_scenario(scenario: Dict[str, Any]) -> dict:
     """
     scenario_id = str(uuid.uuid4())
     SCENARIOS[scenario_id] = scenario
+
+    name: str = ""
+    template: str = ""
+    description: str = ""
+
+    if isinstance(scenario, dict):
+        name = str(scenario.get("name", ""))
+        template = str(scenario.get("template", ""))
+        description = str(scenario.get("description", ""))
+    else:
+        name = getattr(scenario, "name", "")
+        template = getattr(scenario, "template", "")
+        description = getattr(scenario, "description", "")
+
+    emit_event(
+        "scenario.created",
+        {
+            "scenario_id": scenario_id,
+            "name": name,
+            "template": template,
+            "description": description,
+        },
+    )
+
     return {"id": scenario_id}
 
 
