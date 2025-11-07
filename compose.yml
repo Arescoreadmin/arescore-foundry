@@ -24,8 +24,12 @@ services:
       dockerfile: services/orchestrator/Dockerfile
     depends_on:
     - opa
+    environment:
+      FOUNDRY_TELEMETRY_PATH: /app/audits/foundry-events.jsonl
     ports:
     - 8080:8080
+    volumes:
+    - ./audits:/app/audits
     restart: unless-stopped
   spawn_service:
     build:

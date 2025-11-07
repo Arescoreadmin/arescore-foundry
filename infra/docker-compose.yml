@@ -44,7 +44,10 @@ services:
     ports:
       - "8080:8080"
     environment:
+      FOUNDRY_TELEMETRY_PATH: /app/audits/foundry-events.jsonl
       PYTHONPATH: /app:/app/app
+    volumes:
+      - ../audits:/app/audits
     healthcheck:
        test: ["CMD-SHELL", "python - <<'PY'\nimport urllib.request,sys; import json\nu='http://127.0.0.1:8080/health'\ntry:\n  d=json.loads(urllib.request.urlopen(u,timeout=2).read().decode())\n  sys.exit(0 if d.get('ok') else 1)\nexcept Exception:\n  sys.exit(1)\nPY"]
        interval: 15s
