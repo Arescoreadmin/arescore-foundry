@@ -1,28 +1,14 @@
 services:
   opa:
-    image: openpolicyagent/opa:0.67.0
+    image: openpolicyagent/opa:latest
     command:
-    - run
-    - --server
-    - --log-level=info
-    - /policies
+      - run
+      - --server
+      - --addr=0.0.0.0:8181
+      - /policies
+      - /container_policies
     volumes:
-    - ../policies:/policies:ro
+      - ./policies:/policies:ro
+      - ./_container_policies:/container_policies:ro
     ports:
-    - 8181:8181
-    restart: unless-stopped
-    read_only: true
-    cap_drop:
-    - ALL
-    security_opt:
-    - no-new-privileges:true
-    networks:
-    - foundry_net
-  orchestrator:
-    depends_on:
-      opa:
-        condition: service_started
-    networks:
-    - foundry_net
-networks:
-  foundry_net: {}
+      - "8181:8181"
