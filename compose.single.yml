@@ -10,4 +10,4 @@ services:
 
   orchestrator:
     environment:
-      - SITE_MODE=single
+      SITE_MODE: single
