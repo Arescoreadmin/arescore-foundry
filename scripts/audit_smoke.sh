@@ -34,4 +34,19 @@ if [ "${MATCH_COUNT}" -lt 1 ]; then
   exit 1
 fi
 
-log "OK."
+# existing check already sets AUDIT_FILE and MATCH_COUNT
+if [[ "$MATCH_COUNT" -eq 0 ]]; then
+  echo "[audit_smoke] ERROR: no 'scenario.created' events found in '$AUDIT_FILE'."
+  exit 1
+fi
+
+echo "[audit_smoke] Found $MATCH_COUNT 'scenario.created' event(s) in '$AUDIT_FILE'."
+
+# Optional: pretty summary
+if [[ -x "./scripts/audit_report.sh" ]]; then
+  echo "[audit_smoke] Summary:"
+  ./scripts/audit_report.sh || echo "[audit_smoke] (audit_report failed; ignoring for now)"
+fi
+
+echo "[audit_smoke] OK."
+
