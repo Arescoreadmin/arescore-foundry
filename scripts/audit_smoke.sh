@@ -61,10 +61,13 @@ if [[ $found -eq 0 ]]; then
   exit 1
 fi
 
-MATCH_COUNT="$(jq -r --arg sid "$SCENARIO_ID" \
-  'select(.event == "scenario.created" and (.payload.scenario_id == $sid)) | 1' \
-  "$AUDIT_FILE" 2>/dev/null | wc -l | awk '{print $1}')"
-log "Confirmed ${MATCH_COUNT} 'scenario.created' event(s) for scenario ${SCENARIO_ID}."
+# existing check already sets AUDIT_FILE and MATCH_COUNT
+if [[ "$MATCH_COUNT" -eq 0 ]]; then
+  echo "[audit_smoke] ERROR: no 'scenario.created' events found in '$AUDIT_FILE'."
+  exit 1
+fi
+
+echo "[audit_smoke] Found $MATCH_COUNT 'scenario.created' event(s) in '$AUDIT_FILE'."
 
 # Optional: pretty summary
 if [[ -x "./scripts/audit_report.sh" ]]; then
