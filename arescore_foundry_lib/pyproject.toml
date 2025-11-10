@@ -5,13 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "arescore_foundry_lib"
 version = "0.1.0"
-dependencies = [
-    "httpx>=0.27,<1.0",
 description = "Shared utilities for the Arescore Foundry services."
 requires-python = ">=3.10"
-license = {text = "Proprietary"}
+license = { text = "Proprietary" }
 authors = [
-  {name = "Arescore"}
+  { name = "Arescore" }
+]
+dependencies = [
+  "httpx>=0.27,<1.0",
 ]
 
 [tool.setuptools.packages.find]
