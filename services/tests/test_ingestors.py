@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from services.foundry_ingestor_common.query import select
 
 from services.foundry_ingestor_common import create_ingestor_app
 from services.foundry_ingestor_common.events import LoggingEventPublisher
