@@ -3,4 +3,5 @@ uvicorn[standard]==0.30.6
 pydantic<3,>=2.7
 pydantic-settings<3,>=2.4
 pyyaml
+# Required for arescore_foundry_lib.policy.OPAClient
 httpx==0.28.1
