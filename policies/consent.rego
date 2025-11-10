@@ -11,3 +11,5 @@ allow if {
 }
 
 reason := "consent token invalid: empty signature or expired TTL" if not allow
+
+decision := {"allow": allow, "reason": reason}

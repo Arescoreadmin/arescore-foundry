@@ -21,3 +21,5 @@ reason := sprintf("bad model hash: got %v expected %v", [input.model.hash, input
 }
 
 reason := "runtime id revoked" if revoked_runtime
+
+decision := {"allow": allow, "reason": reason}

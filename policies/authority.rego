@@ -20,3 +20,5 @@ reason := "unauthorized issuer" if {
   not crl_listed
   input.auth.issuer != "arescore-ca"
 }
+
+decision := {"allow": allow, "reason": reason}

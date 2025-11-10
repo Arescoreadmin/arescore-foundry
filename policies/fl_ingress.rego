@@ -11,3 +11,5 @@ allow if {
 }
 
 reason := "path/method/content-type not allowed for FL ingress" if not allow
+
+decision := {"allow": allow, "reason": reason}
