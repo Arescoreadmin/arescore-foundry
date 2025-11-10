@@ -20,6 +20,8 @@ COPY services/_generated /app/services/_generated
 COPY arescore_foundry_lib /app/arescore_foundry_lib
 RUN python -m pip install /app/arescore_foundry_lib
 
+COPY policies /app/policies
+COPY _container_policies /app/_container_policies
 COPY services/orchestrator/app /app/app
 COPY services/orchestrator/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
