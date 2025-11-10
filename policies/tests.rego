@@ -52,3 +52,24 @@ test_runtime_allows_when_good if {
     "runtime": {"id": "r-1"}
   }
 }
+
+test_runtime_revoked_by_service_input if {
+  not runtime_revocation.allow with input as {
+    "sig": "s1",
+    "model": {"hash": "good"},
+    "allowed": {"hash": "good"},
+    "revocation": {"runtime_ids": []},
+    "revocation_service": {"runtime_ids": ["r-9"]},
+    "runtime": {"id": "r-9"}
+  }
+}
+
+test_missing_runtime_id_is_denied if {
+  not runtime_revocation.allow with input as {
+    "sig": "s1",
+    "model": {"hash": "good"},
+    "allowed": {"hash": "good"},
+    "revocation": {"runtime_ids": []},
+    "runtime": {}
+  }
+}
