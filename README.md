@@ -8,18 +8,20 @@ It transforms certification prep, AI safety testing, and cyber-defense into a ci
 ## 0. Quick Start
 
 ```bash
-cp .env.example .env
-make up          # or docker compose up --build
+cp infra/.env.example infra/.env
+ENV_FILE="$(pwd)/infra/.env" make up   # or: docker compose --env-file infra/.env up --build
 ```
 
-Health checks  
-- API: http://localhost:8000/health  
-- Orchestrator: http://localhost:8082/health  
-- Frontend: http://localhost:3000/health  
+Health checks
+- Orchestrator API: http://localhost:8080/health
+- Spawn service (from inside the container): `docker compose exec spawn_service curl -s http://localhost:8080/health`
 
 Spawn smoke:
 ```bash
-curl -sX POST http://localhost:8000/api/spawn   -H 'authorization: Bearer DEV-TENANT-TOKEN'   -d '{"track":"netplus","tenant_id":"demo-tenant"}'
+docker compose exec spawn_service \
+  curl -sX POST http://localhost:8080/api/spawn \
+    -H 'authorization: Bearer DEV-TENANT-TOKEN' \
+    -d '{"track":"netplus","tenant_id":"demo-tenant"}'
 ```
 
 ---
