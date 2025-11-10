@@ -20,20 +20,6 @@ import re
 from pathlib import Path
 from typing import Any, Iterator, Mapping, MutableMapping, Sequence
 
-__all__ = [
-    "PolicyError",
-    "PolicyLoadError",
-    "PolicyPushError",
-    "PolicyModule",
-    "PolicyBundle",
-    "load_policy_module",
-    "discover_policy_modules",
-    "build_policy_bundle",
-    "OPAClient",
-    "AuditLogger",
-]
-
-
 class PolicyError(RuntimeError):
     """Base exception for policy related issues."""
 
@@ -360,4 +346,18 @@ class AuditLogger:
 
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+
+__all__ = [
+    "PolicyError",
+    "PolicyLoadError",
+    "PolicyPushError",
+    "PolicyModule",
+    "PolicyBundle",
+    "load_policy_module",
+    "discover_policy_modules",
+    "build_policy_bundle",
+    "OPAClient",
+    "AuditLogger",
+]
 
