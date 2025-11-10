@@ -15,8 +15,6 @@ RUN chmod +x /entrypoint.sh && \
     if [ -f /app/app/requirements.txt ]; then pip install --no-cache-dir -r /app/app/requirements.txt; fi && \
     chown -R app:app /app /entrypoint.sh
 
-USER app
-
 HEALTHCHECK --interval=15s --timeout=3s --retries=5 \
   CMD python -c 'import urllib.request,sys; sys.exit(0 if urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).getcode()==200 else 1)'
 
