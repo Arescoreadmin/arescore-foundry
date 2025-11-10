@@ -8,8 +8,9 @@ BASE            ?= /opt/arescore-foundry
 OPA_IMG         := openpolicyagent/opa@sha256:c0814ce7811ecef8f1297a8e55774a1d5422e5c18b996b665acbc126124fab19
 
 # Compose overlays (set USE_FEDERATED=1, PROD_USE_STAGING=1 as needed)
-USE_FEDERATED   ?= 0
-PROD_USE_STAGING?= 0
+USE_FEDERATED    ?= 0
+PROD_USE_STAGING ?= 0
+USE_TELEMETRY    ?= 0
 
 # Paths
 POL_DIR         := $(PWD)/policies
@@ -21,6 +22,9 @@ COMPOSE_FILES   += -f compose.federated.yml
 endif
 ifeq ($(PROD_USE_STAGING),1)
 COMPOSE_FILES   += -f compose.staging.yml
+endif
+ifeq ($(USE_TELEMETRY),1)
+COMPOSE_FILES   += -f compose.telemetry.yml
 endif
 COMPOSE         := docker compose --env-file $(ENV_FILE) $(COMPOSE_FILES)
 
@@ -36,7 +40,7 @@ endef
 .PHONY: help
 help:
 	@echo "AresCore Foundry — common targets"
-	@echo "  make up                 # start stack (add USE_FEDERATED=1, PROD_USE_STAGING=1)"
+@echo "  make up                 # start stack (add USE_FEDERATED=1, PROD_USE_STAGING=1, USE_TELEMETRY=1)"
 	@echo "  make down               # stop stack + remove orphans"
 	@echo "  make build              # build images (honors overlays)"
 	@echo "  make rebuild            # build --no-cache and start"
