@@ -1,4 +1,4 @@
-import copy
+from copy import deepcopy
 import uuid
 from datetime import datetime, timezone
 
@@ -28,6 +28,12 @@ async def spawn_scenario(
     tenant_id = request.tenant_id or principal.tenant_id
     if not tenant_id:
         raise HTTPException(status_code=400, detail="Tenant must be specified")
+
+    if principal.tenant_id and principal.tenant_id != tenant_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Token tenant does not match requested tenant",
+        )
 
     tenant = db.get(Tenant, tenant_id)
     if not tenant:
@@ -115,7 +121,7 @@ async def spawn_scenario(
     db.add(session)
     db.flush()
 
-    scenario_payload = copy.deepcopy(template.definition)
+    scenario_payload = deepcopy(template.definition)
     metadata = scenario_payload.get("metadata") or {}
     metadata.setdefault("name", f"{template.slug}-{session.id}")
     scenario_payload["metadata"] = metadata
