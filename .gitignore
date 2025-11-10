@@ -36,5 +36,6 @@ infra/backend/
 
 # ci artifacts
 artifacts/
-audits/
+audits/*
+!audits/.gitignore
 usage/
