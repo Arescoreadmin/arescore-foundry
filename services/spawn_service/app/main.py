@@ -17,8 +17,13 @@ from arescore_foundry_lib.policy import (
     PolicyBundle,
 )
 
-app = FastAPI(title="spawn_service")
+settings = get_settings()
 
+app = FastAPI(
+    title=settings.app_name,
+    version=settings.app_version,
+    description="Service responsible for orchestrating tenant-scoped scenario spawns.",
+)
 
 class SpawnRequest(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
@@ -28,10 +33,10 @@ class SpawnRequest(BaseModel):
     model_hash: Optional[str] = None
     consent_signature: Optional[str] = None
 
+@app.on_event("startup")
+def startup() -> None:
+    Base.metadata.create_all(bind=engine)
 
-class SpawnResponse(BaseModel):
-    scenario_id: str
-    access_url: Optional[str] = None
 
 
 _TEMPLATE_SEARCH_PATHS = []
