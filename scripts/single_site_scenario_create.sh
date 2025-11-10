@@ -13,16 +13,28 @@ NAME="${1:-netplus-demo}"
 TEMPLATE="${2:-netplus}"
 DESC="${3:-Single-site demo scenario}"
 
+ORCH_URL="${ORCHESTRATOR_URL:-http://localhost:8080}"
+
 echo ">>> Creating scenario:"
 echo "    name:      ${NAME}"
 echo "    template:  ${TEMPLATE}"
 echo "    desc:      ${DESC}"
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "[single_site_scenario_create] ERROR: jq is required."
+  exit 1
+fi
+
+payload="$(jq -n \
+  --arg name "$NAME" \
+  --arg tmpl "$TEMPLATE" \
+  --arg desc "$DESC" \
+  '{name: $name, template: $tmpl, description: $desc}')"
+
 SCENARIO_ID="$(
-  curl -fsS -X POST http://localhost:8080/api/scenarios \
+  curl -fsS -X POST "${ORCH_URL}/api/scenarios" \
     -H 'Content-Type: application/json' \
-    -d "$(jq -n --arg name "$NAME" --arg tmpl "$TEMPLATE" --arg desc "$DESC" \
-         '{name: $name, template: $tmpl, description: $desc}')" \
+    -d "$payload" \
   | jq -r '.id'
 )"
 

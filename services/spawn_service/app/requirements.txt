@@ -1,4 +1,12 @@
-fastapi
-uvicorn
-httpx
-pyyaml
+alembic==1.13.1
+fastapi==0.115.14
+httpx==0.28.1
+psycopg[binary,pool]==3.1.19
+pyyaml==6.0.1
+python-dotenv==1.0.1
+python-jose[cryptography]==3.3.0
+SQLAlchemy==2.0.30
+uvicorn==0.30.6
+pydantic-settings>=2.4,<3
+httpx==0.28.1
+

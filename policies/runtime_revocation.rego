@@ -3,8 +3,21 @@ package foundry.runtime_revocation
 default allow := false
 default reason := "revoked or mismatched model"
 
+revocation_ids := object.get(
+  object.get(input, "revocation", {}),
+  "runtime_ids",
+  []
+)
+
+runtime_id := object.get(
+  object.get(input, "runtime", {}),
+  "id",
+  ""
+)
+
 revoked_runtime if {
-  input.runtime.id in input.revocation.runtime_ids
+  runtime_id != ""
+  runtime_id in revocation_ids
 }
 
 allow if {

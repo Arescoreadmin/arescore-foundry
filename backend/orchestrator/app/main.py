@@ -1,7 +1,10 @@
-from fastapi import FastAPI
+"""Entry point for running the orchestrator application."""
 
-app = FastAPI()
+from __future__ import annotations
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+from . import create_app
+
+app = create_app()
+
+
+__all__ = ["app", "create_app"]

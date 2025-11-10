@@ -1,10 +1,13 @@
-import os, time
-os.environ.setdefault("RAG_CACHE_URL", "sqlite:///data/rag_cache.sqlite3")
+import os
+import time
+
 from frostgatecore.rag_cache import Cache
+
+
+os.environ.setdefault("RAG_CACHE_URL", "sqlite:///data/rag_cache.sqlite3")
 
 calls = {"embed": 0}
 def slow_embed(t: str):
-    import time
     calls["embed"] += 1
     time.sleep(0.25)  # simulate slow model
     return [float(len(t))]
