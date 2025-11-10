@@ -4,8 +4,17 @@ WORKDIR /app
 
 # Install orchestrator runtime dependencies first to leverage Docker layer caching.
 COPY services/orchestrator/app/requirements.txt /tmp/orchestrator-requirements.txt
+# ``arescore_foundry_lib`` publishes its runtime dependencies through the library's
+# ``pyproject.toml``.  However, when we install the package from the source tree the
+# dependency metadata is resolved in a build step.  The lightweight orchestrator
+# image previously skipped that metadata which left ``httpx`` missing at runtime and
+# caused the container health checks to fail.  Installing the library requirements
+# explicitly keeps the image lean while guaranteeing that ``httpx`` (and any future
+# transitive dependencies) are available before the service boots.
+COPY arescore_foundry_lib/requirements.txt /tmp/arescore-lib-requirements.txt
 RUN python -m pip install --upgrade pip \
-    && python -m pip install -r /tmp/orchestrator-requirements.txt
+    && python -m pip install -r /tmp/orchestrator-requirements.txt \
+    && python -m pip install -r /tmp/arescore-lib-requirements.txt
 
 COPY services/_generated /app/services/_generated
 COPY arescore_foundry_lib /app/arescore_foundry_lib
