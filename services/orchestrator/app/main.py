@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Any, Dict
 
@@ -7,6 +8,7 @@ from services.common.telemetry import TelemetryPublisher
 
 app = FastAPI(title="orchestrator")
 telemetry_publisher = TelemetryPublisher()
+logger = logging.getLogger(__name__)
 
 
 # In-memory store for MVP; replace with real controller later
@@ -31,7 +33,13 @@ def ready() -> dict:
 
 @app.on_event("startup")
 async def startup() -> None:
-    await telemetry_publisher.connect()
+    try:
+        await telemetry_publisher.connect()
+    except Exception as exc:
+        logger.warning(
+            "Telemetry publisher unavailable during startup; continuing without NATS: %s",
+            exc,
+        )
 
 
 @app.on_event("shutdown")
