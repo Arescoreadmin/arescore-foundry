@@ -97,5 +97,3 @@ if [[ -x "./scripts/audit_report.sh" ]]; then
   log "Summary:"
   ./scripts/audit_report.sh || log "(audit_report failed; ignoring for now)"
 fi
-
-log "OK."
