@@ -54,8 +54,7 @@ def emit_event(event_name: str, payload: Dict[str, Any]) -> None:
         sink_path.parent.mkdir(parents=True, exist_ok=True)
 
         with sink_path.open("a", encoding="utf-8") as sink_file:
-            sink_file.write(_serialise_event(event_name, payload))
-            sink_file.write("\n")
+            sink_file.write(f"{_serialise_event(event_name, payload)}\n")
 
     except Exception:  # pragma: no cover - defensive logging
         logger.exception("failed_to_write_telemetry event=%s", event_name)

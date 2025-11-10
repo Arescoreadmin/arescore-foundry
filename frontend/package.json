@@ -1,24 +1,37 @@
 {
   "name": "frostgate-foundry-frontend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "serve": "vite preview",
-    "up": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build",
-    "down": "docker compose -f infra/docker-compose.yml down --remove-orphans",
-    "logs": "docker compose -f infra/docker-compose.yml logs -f",
-    "ps": "docker compose -f infra/docker-compose.yml ps",
-    "rebuild-frontend": "docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build frontend"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0"
+    "@radix-ui/react-avatar": "^1.0.4",
+    "@radix-ui/react-dialog": "^1.0.5",
+    "@radix-ui/react-dropdown-menu": "^2.0.6",
+    "@radix-ui/react-scroll-area": "^1.0.5",
+    "@radix-ui/react-separator": "^1.0.4",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.0",
+    "lucide-react": "^0.365.0",
+    "next": "14.2.3",
+    "next-themes": "^0.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "vite": "^4.0.0",
-    "@vitejs/plugin-react": "^4.0.0"
-  
+    "@types/node": "^20.12.7",
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.25",
+    "autoprefixer": "^10.4.18",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.3",
+    "postcss": "^8.4.38",
+    "tailwind-merge": "^2.2.1",
+    "tailwindcss": "^3.4.3",
+    "typescript": "^5.4.5"
   }
 }
