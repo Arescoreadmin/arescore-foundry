@@ -1,4 +1,13 @@
+<<<<<<< HEAD
 fastapi==0.115.2
 uvicorn==0.30.6
 httpx==0.28.1
 pydantic==2.9.2
+=======
+fastapi==0.115.14
+uvicorn[standard]==0.30.6
+pydantic<3,>=2.7
+pydantic-settings<3,>=2.4
+pyyaml
+httpx==0.28.1
+>>>>>>> 36315ed (Fix orchestrator build and package arescore_foundry_lib)
