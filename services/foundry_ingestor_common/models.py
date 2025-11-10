@@ -1,147 +1,167 @@
-"""Canonical SQLAlchemy models shared by ingestor services."""
+"""Canonical data models used by ingestor services.
+
+The original implementation depended on SQLAlchemy ORM models. To keep the
+runtime footprint small for the kata environment we instead provide lightweight
+``dataclass`` representations with helper constructors.  They expose the same
+attributes that the tests rely on while remaining serialisable to and from the
+SQLite backing store used by :mod:`services.foundry_ingestor_common.database`.
+"""
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, ClassVar, Dict
 from uuid import uuid4
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
-from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-class Base(DeclarativeBase):
-    """Declarative base for canonical tables."""
-
-    pass
-
-
+@dataclass
 class TimestampMixin:
     """Mixin that adds created/updated timestamps."""
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
+    created_at: datetime = field(default_factory=_utcnow)
+    updated_at: datetime = field(default_factory=_utcnow)
+
+    def touch(self) -> None:
+        self.updated_at = _utcnow()
 
 
-class Site(Base, TimestampMixin):
+@dataclass
+class Site(TimestampMixin):
     """Physical or logical site definition."""
 
-    __tablename__ = "sites"
+    table_name: ClassVar[str] = "sites"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    code: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[str | None] = mapped_column(Text())
-    metadata_: Mapped[dict[str, Any]] = mapped_column(
-        "metadata",
-        MutableDict.as_mutable(JSON),
-        default=dict,
-        nullable=False,
-    )
+    id: str = field(default_factory=lambda: str(uuid4()))
+    code: str = ""
+    name: str = ""
+    description: str | None = None
+    metadata_: dict[str, Any] = field(default_factory=dict)
 
-    segments: Mapped[list["NetworkSegment"]] = relationship(
-        "NetworkSegment",
-        back_populates="site",
-        cascade="all, delete-orphan",
-    )
-    snapshots: Mapped[list["Snapshot"]] = relationship("Snapshot", back_populates="site")
+    @classmethod
+    def from_row(cls, row: Dict[str, Any]) -> "Site":
+        return cls(
+            id=row["id"],
+            code=row["code"],
+            name=row["name"],
+            description=row.get("description"),
+            metadata_=row.get("metadata", {}),
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
 
     def update_from_payload(self, payload: dict[str, Any]) -> None:
         self.name = payload.get("name", self.name)
         self.description = payload.get("description")
         self.metadata_ = payload.get("metadata", self.metadata_)
+        self.touch()
 
 
-class NetworkSegment(Base, TimestampMixin):
+@dataclass
+class NetworkSegment(TimestampMixin):
     """Network segment information for a site."""
 
-    __tablename__ = "network_segments"
-    __table_args__ = (UniqueConstraint("site_id", "code", name="uq_segment_site_code"),)
+    table_name: ClassVar[str] = "network_segments"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    site_id: Mapped[str] = mapped_column(String(36), ForeignKey("sites.id", ondelete="CASCADE"))
-    code: Mapped[str] = mapped_column(String(64), nullable=False)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    cidr: Mapped[str | None] = mapped_column(String(64))
-    metadata_: Mapped[dict[str, Any]] = mapped_column(
-        "metadata",
-        MutableDict.as_mutable(JSON),
-        default=dict,
-        nullable=False,
-    )
+    id: str = field(default_factory=lambda: str(uuid4()))
+    site_id: str = ""
+    code: str = ""
+    name: str = ""
+    cidr: str | None = None
+    metadata_: dict[str, Any] = field(default_factory=dict)
 
-    site: Mapped[Site] = relationship("Site", back_populates="segments")
-    devices: Mapped[list["Device"]] = relationship(
-        "Device",
-        back_populates="segment",
-        cascade="all, delete-orphan",
-    )
+    @classmethod
+    def from_row(cls, row: Dict[str, Any]) -> "NetworkSegment":
+        return cls(
+            id=row["id"],
+            site_id=row["site_id"],
+            code=row["code"],
+            name=row["name"],
+            cidr=row.get("cidr"),
+            metadata_=row.get("metadata", {}),
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
 
     def update_from_payload(self, payload: dict[str, Any]) -> None:
         self.name = payload.get("name", self.name)
         self.cidr = payload.get("cidr")
         self.metadata_ = payload.get("metadata", self.metadata_)
+        self.touch()
 
 
-class Device(Base, TimestampMixin):
+@dataclass
+class Device(TimestampMixin):
     """Device inventory entry."""
 
-    __tablename__ = "devices"
-    __table_args__ = (UniqueConstraint("segment_id", "code", name="uq_device_segment_code"),)
+    table_name: ClassVar[str] = "devices"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    site_id: Mapped[str] = mapped_column(String(36), ForeignKey("sites.id", ondelete="CASCADE"))
-    segment_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("network_segments.id", ondelete="SET NULL"), nullable=True
-    )
-    code: Mapped[str] = mapped_column(String(64), nullable=False)
-    hostname: Mapped[str] = mapped_column(String(255), nullable=False)
-    ip_address: Mapped[str | None] = mapped_column(String(64))
-    device_type: Mapped[str | None] = mapped_column(String(128))
-    metadata_: Mapped[dict[str, Any]] = mapped_column(
-        "metadata",
-        MutableDict.as_mutable(JSON),
-        default=dict,
-        nullable=False,
-    )
+    id: str = field(default_factory=lambda: str(uuid4()))
+    site_id: str = ""
+    segment_id: str | None = None
+    code: str = ""
+    hostname: str = ""
+    ip_address: str | None = None
+    device_type: str | None = None
+    metadata_: dict[str, Any] = field(default_factory=dict)
 
-    site: Mapped[Site] = relationship("Site")
-    segment: Mapped[NetworkSegment | None] = relationship("NetworkSegment", back_populates="devices")
+    @classmethod
+    def from_row(cls, row: Dict[str, Any]) -> "Device":
+        return cls(
+            id=row["id"],
+            site_id=row["site_id"],
+            segment_id=row.get("segment_id"),
+            code=row["code"],
+            hostname=row["hostname"],
+            ip_address=row.get("ip_address"),
+            device_type=row.get("device_type"),
+            metadata_=row.get("metadata", {}),
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
 
     def update_from_payload(self, payload: dict[str, Any]) -> None:
         self.hostname = payload.get("hostname", self.hostname)
         self.ip_address = payload.get("ip_address")
         self.device_type = payload.get("device_type")
         self.metadata_ = payload.get("metadata", self.metadata_)
+        self.touch()
 
 
-class Snapshot(Base):
+@dataclass
+class Snapshot:
     """Snapshot of ingested data from a source system."""
 
-    __tablename__ = "snapshots"
-    __table_args__ = (
-        UniqueConstraint("source", "external_id", name="uq_snapshot_source_external_id"),
-    )
+    table_name: ClassVar[str] = "snapshots"
 
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
-    external_id: Mapped[str] = mapped_column(String(128), nullable=False)
-    source: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
-    category: Mapped[str] = mapped_column(String(64), nullable=False)
-    version: Mapped[int] = mapped_column(Integer, nullable=False)
-    site_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("sites.id"), nullable=True)
-    collected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    ingested_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-    payload: Mapped[dict[str, Any]] = mapped_column(MutableDict.as_mutable(JSON), nullable=False)
+    id: str = field(default_factory=lambda: str(uuid4()))
+    external_id: str = ""
+    source: str = ""
+    category: str = ""
+    version: int = 1
+    site_id: str | None = None
+    collected_at: datetime | None = None
+    ingested_at: datetime = field(default_factory=_utcnow)
+    payload: dict[str, Any] = field(default_factory=dict)
 
-    site: Mapped[Site | None] = relationship("Site", back_populates="snapshots")
+    @classmethod
+    def from_row(cls, row: Dict[str, Any]) -> "Snapshot":
+        collected_at = row.get("collected_at")
+        return cls(
+            id=row["id"],
+            external_id=row["external_id"],
+            source=row["source"],
+            category=row["category"],
+            version=row["version"],
+            site_id=row.get("site_id"),
+            collected_at=datetime.fromisoformat(collected_at) if collected_at else None,
+            ingested_at=datetime.fromisoformat(row["ingested_at"]),
+            payload=row.get("payload", {}),
+        )
 
+
+__all__ = ["Device", "NetworkSegment", "Site", "Snapshot"]

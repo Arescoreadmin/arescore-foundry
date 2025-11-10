@@ -9,14 +9,12 @@ from typing import Any, Iterable, Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import JSONResponse
-from jsonschema import Draft7Validator, ValidationError
-from sqlalchemy.orm import Session
 
 from .audit import AuditLogger
-from .database import create_db_engine, create_session_factory
+from .database import Session, create_db_engine, create_session_factory, initialize_database
 from .events import EventPublisher, LoggingEventPublisher
 from .ingest import ingest_snapshot
-from .models import Base
+from .validation import SnapshotValidator, ValidationError
 
 DEFAULT_AUDIT_DIR = Path(os.getenv("FOUNDRY_AUDIT_DIR", "audits"))
 DEFAULT_EVENT_SUBJECT = "snapshot.synced"
@@ -40,10 +38,10 @@ def create_ingestor_app(
     """Create and configure a FastAPI application for ingestion."""
 
     schema = load_schema(schema_path)
-    validator = Draft7Validator(schema)
+    validator = SnapshotValidator(schema)
 
     engine = create_db_engine(database_url)
-    Base.metadata.create_all(engine)
+    initialize_database(engine)
     session_factory = create_session_factory(engine)
 
     audit_path = audit_log_path or DEFAULT_AUDIT_DIR / f"{service_name}.jsonl"
@@ -61,7 +59,7 @@ def create_ingestor_app(
     app.state.service_name = service_name
     app.state.snapshot_category = snapshot_category
 
-    def get_db() -> Session:
+    def get_db():
         session = session_factory()
         try:
             yield session
@@ -76,15 +74,15 @@ def create_ingestor_app(
     async def sync_endpoint(payload: dict[str, Any], db: Session = Depends(get_db)) -> JSONResponse:
         snapshot_id = payload.get("snapshot_id")
         try:
-            app.state.validator.validate(payload)
+            validator.validate(payload)
         except ValidationError as exc:
             audit_logger.log(
                 service=service_name,
                 snapshot_id=snapshot_id,
                 status="failed",
-                details={"error": exc.message},
+                details={"error": str(exc)},
             )
-            raise HTTPException(status_code=422, detail=exc.message) from exc
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
         try:
             snapshot, created = ingest_snapshot(
