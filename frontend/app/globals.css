@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 224 60% 6%;
+  --foreground: 214 40% 96%;
+  --muted: 222 35% 18%;
+  --muted-foreground: 214 20% 70%;
+  --accent: 198 67% 48%;
+  --accent-foreground: 214 40% 98%;
+  --primary: 199 80% 64%;
+  --primary-foreground: 222 35% 16%;
+  --secondary: 262 65% 64%;
+  --secondary-foreground: 214 40% 98%;
+  --success: 152 65% 46%;
+  --success-foreground: 224 60% 6%;
+  --warning: 35 93% 53%;
+  --warning-foreground: 224 60% 6%;
+  --destructive: 353 84% 48%;
+  --destructive-foreground: 214 40% 98%;
+  --border: 224 36% 24%;
+  --input: 224 36% 24%;
+  --ring: 198 67% 48%;
+  --radius: 14px;
+}
+
+[data-theme="cinder"] {
+  --background: 226 53% 5%;
+  --foreground: 210 50% 96%;
+  --accent: 190 75% 54%;
+  --accent-foreground: 210 60% 98%;
+  --primary: 192 82% 58%;
+  --primary-foreground: 219 37% 12%;
+  --secondary: 272 61% 66%;
+  --secondary-foreground: 213 43% 96%;
+}
+
+body {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, hsla(199, 80%, 14%, 0.35), transparent 55%),
+    radial-gradient(circle at bottom, hsla(262, 65%, 12%, 0.4), transparent 60%),
+    hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "ss01" on, "cv11" on;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.rune-grid {
+  background-image: linear-gradient(90deg, hsla(214, 40%, 98%, 0.04) 1px, transparent 1px),
+    linear-gradient(0deg, hsla(214, 40%, 98%, 0.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.rune-highlight {
+  background: linear-gradient(135deg, hsla(198, 67%, 48%, 0.3), hsla(262, 65%, 46%, 0.35));
+  box-shadow: 0 20px 50px -30px hsla(199, 80%, 46%, 0.55);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsla(198, 67%, 48%, 0.45);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
