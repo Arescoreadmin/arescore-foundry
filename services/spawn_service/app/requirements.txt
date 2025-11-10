@@ -8,3 +8,5 @@ python-jose[cryptography]==3.3.0
 SQLAlchemy==2.0.30
 uvicorn==0.30.6
 pydantic-settings>=2.4,<3
+httpx==0.28.1
+
