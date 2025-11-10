@@ -1,0 +1,7 @@
+namespace: foundry-control
+nats:
+  url: nats://nats.default.svc:4222
+opa:
+  bundle: ""
+labels: {}
+annotations: {}

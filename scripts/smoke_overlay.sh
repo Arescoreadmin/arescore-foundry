@@ -2,7 +2,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-COMPOSE="docker compose -f compose.yml -f compose.federated.yml"
+COMPOSE="docker compose --profile control-plane --profile range-plane -f compose.yml -f compose.federated.yml"
 CURL="curl -fsS --max-time 3"
 RETRIES=${RETRIES:-40}     # ~40s worst-case
 SLEEP=${SLEEP:-1}
@@ -23,7 +23,7 @@ $COMPOSE ps
 
 # --- 2) Wait for container health (robust via docker inspect)
 say "==> Waiting for containers to be healthy"
-need_healthy=(orchestrator fl_coordinator consent_registry evidence_bundler)
+need_healthy=(opa nats minio loki orchestrator ingestors fl_coordinator consent_registry evidence_bundler)
 
 health_of() {
   local svc="$1"
@@ -81,6 +81,7 @@ declare -A checks=(
   ["consent_crl (GET /crl)"]="GET http://127.0.0.1:9093/crl"
   ["evidence_bundler (GET /health)"]="GET http://127.0.0.1:9094/health"
   ["orchestrator (GET /health)"]="GET http://127.0.0.1:8080/health"
+  ["ingestors (GET /health)"]="GET http://127.0.0.1:8070/health"
 )
 
 fail=0

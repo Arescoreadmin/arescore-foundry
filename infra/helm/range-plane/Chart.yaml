@@ -1,0 +1,4 @@
+apiVersion: v2
+name: range-plane
+version: 0.1.0
+description: Helm chart for FrostGate Foundry tenant range namespaces

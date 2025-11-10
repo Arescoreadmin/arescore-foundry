@@ -1,38 +1,169 @@
+version: "3.9"
+
 services:
   opa:
     image: openpolicyagent/opa@sha256:c0814ce7811ecef8f1297a8e55774a1d5422e5c18b996b665acbc126124fab19
     command:
-    - run
-    - --server
-    - /policies
+      - run
+      - --server
+      - --addr=0.0.0.0:8181
+      - --diagnostic-addr=0.0.0.0:8282
+      - --ignore=.*\.rego\.disabled
+      - /policies
     volumes:
-    - ./policies:/policies:ro
+      - ./policies:/policies:ro
     read_only: true
     healthcheck:
       test:
-      - CMD
-      - opa
-      - eval
-      - 1==1
+        - CMD
+        - opa
+        - eval
+        - 1==1
       interval: 10s
       timeout: 3s
       retries: 5
     restart: unless-stopped
+    networks:
+      - control-plane
+
+  nats:
+    image: nats:2.10.8-alpine
+    command:
+      - -js
+      - -sd
+      - /var/lib/nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - nats-data:/var/lib/nats
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "curl -sf http://127.0.0.1:8222/varz >/dev/null || wget -qO- http://127.0.0.1:8222/varz >/dev/null"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - control-plane
+      - range-plane
+
+  loki:
+    image: grafana/loki:2.9.4
+    command:
+      - -config.file=/etc/loki/loki-local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki-data:/loki
+      - ./observability/loki-config.yaml:/etc/loki/loki-local-config.yaml:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3100/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - range-plane
+      - observability
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-04-18T19-09-19Z
+    command:
+      - server
+      - /data
+      - --console-address
+      - ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "curl -sf http://127.0.0.1:9000/minio/health/live >/dev/null || wget -qO- http://127.0.0.1:9000/minio/health/live >/dev/null"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - range-plane
+
   orchestrator:
     build:
       context: .
       dockerfile: services/orchestrator/Dockerfile
     depends_on:
-    - opa
+      opa:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+      minio:
+        condition: service_started
     environment:
       FOUNDRY_TELEMETRY_PATH: /app/audits/foundry-events.jsonl
+      OPA_URL: http://opa:8181
+      NATS_URL: nats://nats:4222
+      ARTIFACT_BUCKET: scenarios
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
     ports:
-    - 8080:8080
+      - "8080:8080"
     volumes:
-    - ./audits:/app/audits
+      - ./audits:/app/audits
     restart: unless-stopped
+    networks:
+      - control-plane
+      - range-plane
+
   spawn_service:
     build:
       context: .
       dockerfile: services/spawn_service/Dockerfile
-    depends_on: []
+    depends_on:
+      orchestrator:
+        condition: service_started
+    environment:
+      ORCHESTRATOR_URL: http://orchestrator:8080
+      TELEMETRY_SINK: http://loki:3100
+    networks:
+      - control-plane
+
+  ingestors:
+    build:
+      context: .
+      dockerfile: services/ingestors/Dockerfile
+    depends_on:
+      minio:
+        condition: service_started
+      nats:
+        condition: service_started
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: scenarios
+      NATS_URL: nats://nats:4222
+      CONTROL_PLANE_SCENARIO_API: http://orchestrator:8080/api/scenarios
+    ports:
+      - "8070:8080"
+    networks:
+      - control-plane
+      - range-plane
+    restart: unless-stopped
+
+volumes:
+  loki-data:
+  minio-data:
+  nats-data:
+
+networks:
+  control-plane:
+  range-plane:
+  observability:

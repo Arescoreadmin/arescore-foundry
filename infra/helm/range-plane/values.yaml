@@ -1,0 +1,8 @@
+namespacePrefix: tenant-
+controlPlaneNamespace: foundry-control
+tenants:
+  - slug: demo
+    displayName: Demo Range
+    quota:
+      cpu: "2"
+      memory: 4Gi

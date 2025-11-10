@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.namespace }}
+  labels:
+    foundry.arescore.dev/plane: control
+    foundry.arescore.dev/version: v1
+{{- range $key, $value := .Values.labels }}
+    {{ $key }}: {{ $value | quote }}
+{{- end }}
+  annotations:
+    foundry.arescore.dev/nats-url: {{ .Values.nats.url | quote }}
+    foundry.arescore.dev/opa-bundle: {{ .Values.opa.bundle | quote }}
+{{- range $key, $value := .Values.annotations }}
+    {{ $key }}: {{ $value | quote }}
+{{- end }}

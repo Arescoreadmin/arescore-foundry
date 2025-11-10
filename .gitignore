@@ -33,6 +33,9 @@ __pycache__/
 .data/
 data/
 infra/backend/
+.terraform/
+*.tfstate
+*.tfstate.backup
 
 # ci artifacts
 artifacts/

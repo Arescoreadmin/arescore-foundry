@@ -1,28 +1,93 @@
 services:
+  opa:
+    profiles:
+      - control-plane
+
+  orchestrator:
+    profiles:
+      - control-plane
+
+  spawn_service:
+    profiles:
+      - control-plane
+
+  nats:
+    profiles:
+      - control-plane
+
+  ingestors:
+    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescore-foundry/ingestors}:latest
+    environment:
+      CONTROL_PLANE_SCENARIO_API: ${CONTROL_PLANE_SCENARIO_API:-http://orchestrator:8080/api/scenarios}
+      TELEMETRY_SINK: ${TELEMETRY_SINK:-http://loki:3100}
+    networks:
+      - range-plane
+      - observability
+    profiles:
+      - range-plane
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2024-04-18T19-09-19Z
+    networks:
+      - range-plane
+    profiles:
+      - range-plane
+
+  loki:
+    image: grafana/loki:2.9.4
+    networks:
+      - range-plane
+      - observability
+    profiles:
+      - range-plane
+
   fl_coordinator:
     build:
       context: .
       dockerfile: services/fl_coordinator/Dockerfile
     depends_on:
-    - orchestrator
+      orchestrator:
+        condition: service_started
+    environment:
+      ORCHESTRATOR_URL: ${CONTROL_PLANE_ORCHESTRATOR_URL:-http://orchestrator:8080}
     ports:
-    - 9092:8080
+      - "9092:8080"
     restart: unless-stopped
+    networks:
+      - range-plane
+    profiles:
+      - range-plane
+
   consent_registry:
     build:
       context: .
       dockerfile: services/consent_registry/Dockerfile
     depends_on:
-    - orchestrator
+      orchestrator:
+        condition: service_started
+    environment:
+      ORCHESTRATOR_URL: ${CONTROL_PLANE_ORCHESTRATOR_URL:-http://orchestrator:8080}
     ports:
-    - 9093:8080
+      - "9093:8080"
     restart: unless-stopped
+    networks:
+      - range-plane
+    profiles:
+      - range-plane
+
   evidence_bundler:
     build:
       context: .
       dockerfile: services/evidence_bundler/Dockerfile
     depends_on:
-    - orchestrator
+      orchestrator:
+        condition: service_started
+    environment:
+      ORCHESTRATOR_URL: ${CONTROL_PLANE_ORCHESTRATOR_URL:-http://orchestrator:8080}
     ports:
-    - 9094:8080
+      - "9094:8080"
     restart: unless-stopped
+    networks:
+      - range-plane
+    profiles:
+      - range-plane
