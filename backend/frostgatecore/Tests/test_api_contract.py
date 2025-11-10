@@ -2,7 +2,6 @@ import os
 import time
 
 import httpx
-import pytest
 
 BASE = (
     os.getenv("FROSTGATECORE_URL")
@@ -11,7 +10,7 @@ BASE = (
 )
 
 
-def wait_healthy(timeout: int = 30) -> bool:
+def wait_healthy(timeout=30):
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:

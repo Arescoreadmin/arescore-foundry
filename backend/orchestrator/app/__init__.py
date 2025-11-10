@@ -8,11 +8,12 @@ from typing import Optional
 from fastapi import FastAPI
 
 from .config import Settings
-from .messaging import EventBus, InMemoryEventBus, NATSBus
+from .messaging import EventBus, NATSBus
 from .routes import build_admin_router
 from .services import SessionService
 from .state import SessionStore
 from .translator import TopologyTranslator
+from ..correlation import install_correlation_middleware
 
 
 def create_app(
@@ -36,6 +37,8 @@ def create_app(
     service = SessionService(store=store, translator=translator, event_bus=bus)
 
     app = FastAPI(title="Arescore Orchestrator")
+
+    install_correlation_middleware(app)
 
     admin_router = build_admin_router(service=service)
     app.include_router(admin_router, prefix="/admin", tags=["admin"])

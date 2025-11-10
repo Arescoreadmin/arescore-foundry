@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-import sys, os, subprocess, shutil, textwrap
+import subprocess
+import sys
+import textwrap
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]

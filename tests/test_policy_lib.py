@@ -8,6 +8,7 @@ import pytest
 
 import arescore_foundry_lib.policy as policy
 from arescore_foundry_lib.policy import (
+    AuditLogger,
     OPAClient,
     PolicyBundle,
     PolicyLoadError,
@@ -128,4 +129,21 @@ def test_policy_client_module_reexports_public_api() -> None:
 
     assert module.OPAClient is OPAClient
     assert module.PolicyBundle is PolicyBundle
+
+
+def test_audit_logger_appends_jsonl(tmp_path: Path) -> None:
+    log_path = tmp_path / "audit" / "events.jsonl"
+    logger = AuditLogger(log_path)
+
+    logger.log(service="orchestrator", snapshot_id="123", status="ok", details={"k": "v"})
+
+    contents = log_path.read_text(encoding="utf-8").strip().splitlines()
+    assert len(contents) == 1
+    payload = json.loads(contents[0])
+    assert payload["service"] == "orchestrator"
+    assert payload["snapshot_id"] == "123"
+    assert payload["status"] == "ok"
+    assert payload["details"] == {"k": "v"}
+    # Timestamp should exist and be ISO formatted to second granularity
+    assert payload["timestamp"].endswith("Z") or payload["timestamp"].count(":") >= 2
 

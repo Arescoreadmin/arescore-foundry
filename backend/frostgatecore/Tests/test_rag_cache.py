@@ -2,10 +2,13 @@ import uuid
 
 from app.rag_cache import cached_embed, cached_query_topk
 
+def fake_embed(text: str) -> str:
+    return f"vec:{text}"
+
+
 def test_embed_normalizes_whitespace():
-    fake_embed = lambda s: f"vec:{s}"
     a = cached_embed("hello   world", embed_fn=fake_embed)
-    b = cached_embed("hello world",   embed_fn=fake_embed)
+    b = cached_embed("hello world", embed_fn=fake_embed)
     assert a == b
 
 def test_query_ttl_hit():
