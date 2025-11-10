@@ -13,6 +13,7 @@ fills that gap with a small, dependency-light implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import importlib
 import json
 import re
 from pathlib import Path
@@ -44,6 +45,10 @@ class PolicyPushError(PolicyError):
 
 
 _PACKAGE_RE = re.compile(r"^\s*package\s+([\w\.\/]+)", re.MULTILINE)
+
+
+_HTTPX_MODULE: Any | None = None
+_HTTPX_ATTEMPTED = False
 
 
 @dataclass(frozen=True)
@@ -189,26 +194,20 @@ class OPAClient:
         if not self.base_url:
             raise PolicyPushError("OPA base URL must not be empty")
 
-        try:
-            import httpx
-        except Exception as exc:  # pragma: no cover - optional dependency guard
-            raise PolicyPushError("Publishing policies requires the 'httpx' package") from exc
-
         errors: list[str] = []
         headers = {"Content-Type": "text/plain"}
 
-        with httpx.Client(base_url=self.base_url, timeout=self.timeout) as client:
-            for module in bundle.modules:
-                policy_id = module.policy_id(prefix)
-                response = client.put(
-                    f"/v1/policies/{policy_id}",
-                    content=module.source,
-                    headers=headers,
-                )
-                if response.status_code >= 400:
-                    errors.append(
-                        f"{policy_id}: {response.status_code} {response.text.strip()}"
-                    )
+        for module in bundle.modules:
+            policy_id = module.policy_id(prefix)
+            status, text = self._request(
+                "PUT",
+                f"/v1/policies/{policy_id}",
+                headers=headers,
+                content=module.source,
+                error_cls=PolicyPushError,
+            )
+            if status >= 400:
+                errors.append(f"{policy_id}: {status} {text.strip()}")
 
         if errors:
             raise PolicyPushError(
@@ -221,17 +220,114 @@ class OPAClient:
         if not self.base_url:
             raise PolicyError("OPA base URL must not be empty")
 
-        try:
-            import httpx
-        except Exception as exc:  # pragma: no cover - optional dependency guard
-            raise PolicyError("Evaluating policies requires the 'httpx' package") from exc
-
         endpoint = path.strip("/")
         url = f"{self.base_url}/v1/data/{endpoint}" if endpoint else f"{self.base_url}/v1/data"
 
-        with httpx.Client(timeout=self.timeout) as client:
-            response = client.post(url, json={"input": payload})
-            response.raise_for_status()
-            data = response.json()
+        status, text = self._request(
+            "POST",
+            url,
+            json_payload={"input": payload},
+            error_cls=PolicyError,
+        )
+        if status >= 400:
+            raise PolicyError(f"OPA evaluate request failed: {status} {text.strip()}")
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise PolicyError("OPA response was not valid JSON") from exc
         return data.get("result")
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+        content: str | bytes | None = None,
+        json_payload: Mapping[str, Any] | None = None,
+        error_cls: type[PolicyError],
+    ) -> tuple[int, str]:
+        url = self._resolve_url(path)
+        httpx_module = _get_httpx()
+        if httpx_module is not None:
+            request_headers = dict(headers or {})
+            try:
+                with httpx_module.Client(timeout=self.timeout) as client:
+                    response = client.request(
+                        method,
+                        url,
+                        headers=request_headers,
+                        content=content,
+                        json=json_payload,
+                    )
+            except httpx_module.HTTPError as exc:  # pragma: no cover - network guard
+                raise error_cls(f"OPA request failed: {exc}") from exc
+            return response.status_code, response.text
+
+        return self._urllib_request(
+            method,
+            url,
+            headers=headers,
+            content=content,
+            json_payload=json_payload,
+            error_cls=error_cls,
+        )
+
+    def _resolve_url(self, path: str) -> str:
+        if path.startswith("http://") or path.startswith("https://"):
+            return path
+        if not path.startswith("/"):
+            path = f"/{path}"
+        return f"{self.base_url}{path}"
+
+    def _urllib_request(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: Mapping[str, str] | None,
+        content: str | bytes | None,
+        json_payload: Mapping[str, Any] | None,
+        error_cls: type[PolicyError],
+    ) -> tuple[int, str]:
+        from urllib import error as urllib_error, request as urllib_request
+
+        request_headers = dict(headers or {})
+        data: bytes | None = None
+        if json_payload is not None:
+            data = json.dumps(json_payload).encode("utf-8")
+            request_headers.setdefault("Content-Type", "application/json")
+        elif content is not None:
+            data = content if isinstance(content, bytes) else content.encode("utf-8")
+
+        req = urllib_request.Request(
+            url,
+            data=data,
+            headers=request_headers,
+            method=method.upper(),
+        )
+
+        try:
+            with urllib_request.urlopen(req, timeout=self.timeout) as response:
+                status = response.getcode() or 0
+                body = response.read()
+        except urllib_error.HTTPError as exc:
+            status = exc.code
+            body = exc.read()
+        except urllib_error.URLError as exc:  # pragma: no cover - network guard
+            raise error_cls(f"OPA request failed: {exc.reason}") from exc
+
+        return status, body.decode("utf-8", errors="replace")
+
+
+def _get_httpx() -> Any | None:
+    global _HTTPX_MODULE, _HTTPX_ATTEMPTED
+    if not _HTTPX_ATTEMPTED:
+        _HTTPX_ATTEMPTED = True
+        try:  # pragma: no cover - optional dependency guard
+            _HTTPX_MODULE = importlib.import_module("httpx")
+        except Exception:
+            _HTTPX_MODULE = None
+    return _HTTPX_MODULE
 
