@@ -16,7 +16,7 @@ services:
       - control-plane
 
   ingestors:
-    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescore-foundry/ingestors}:latest
+    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescoreadmin/arescore-foundry}/ingestors:latest
     environment:
       CONTROL_PLANE_SCENARIO_API: ${CONTROL_PLANE_SCENARIO_API:-http://orchestrator:8080/api/scenarios}
       TELEMETRY_SINK: ${TELEMETRY_SINK:-http://loki:3100}

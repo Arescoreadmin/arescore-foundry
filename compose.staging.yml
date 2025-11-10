@@ -4,15 +4,15 @@ services:
       OPA_LOG_LEVEL: info
 
   orchestrator:
-    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescore-foundry/orchestrator}:latest
+    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescoreadmin/arescore-foundry}/orchestrator:latest
     environment:
       NATS_URL: ${STAGING_NATS_URL:-nats://nats:4222}
       MINIO_ENDPOINT: ${STAGING_MINIO_ENDPOINT:-minio:9000}
-      MINIO_ACCESS_KEY: ${STAGING_MINIO_ACCESS_KEY:-${MINIO_ROOT_USER:-minioadmin}}
-      MINIO_SECRET_KEY: ${STAGING_MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD:-minioadmin}}
+      MINIO_ACCESS_KEY: ${STAGING_MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_SECRET_KEY: ${STAGING_MINIO_SECRET_KEY:-minioadmin}
 
   spawn_service:
-    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescore-foundry/spawn_service}:latest
+    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescoreadmin/arescore-foundry}/spawn_service:latest
     environment:
       ORCHESTRATOR_URL: ${CONTROL_PLANE_ORCHESTRATOR_URL:-http://orchestrator:8080}
 
