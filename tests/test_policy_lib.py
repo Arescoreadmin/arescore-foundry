@@ -122,3 +122,10 @@ def test_opa_client_evaluate_falls_back_to_urllib(monkeypatch: pytest.MonkeyPatc
 
     assert result == response_payload["result"]
 
+
+def test_policy_client_module_reexports_public_api() -> None:
+    module = __import__("arescore_foundry_lib.policy.client", fromlist=["OPAClient"])
+
+    assert module.OPAClient is OPAClient
+    assert module.PolicyBundle is PolicyBundle
+
