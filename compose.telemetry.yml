@@ -1,0 +1,47 @@
+services:
+  loki:
+    image: grafana/loki:2.9.3
+    command:
+      - -config.file=/etc/loki/local-config.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./infra/telemetry/loki-config.yml:/etc/loki/local-config.yml:ro
+      - loki-data:/loki
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3100/ready >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  promtail:
+    image: grafana/promtail:2.9.3
+    command:
+      - -config.file=/etc/promtail/config.yml
+    depends_on:
+      loki:
+        condition: service_started
+    volumes:
+      - ./infra/telemetry/promtail-config.yml:/etc/promtail/config.yml:ro
+      - ./audits:/var/log/foundry:ro
+      - promtail-positions:/tmp
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_FEATURE_TOGGLES_ENABLE: lokiLogs
+    ports:
+      - "3001:3000"
+    depends_on:
+      loki:
+        condition: service_started
+    volumes:
+      - grafana-data:/var/lib/grafana
+
+volumes:
+  loki-data:
+  promtail-positions:
+  grafana-data:
