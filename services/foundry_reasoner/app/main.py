@@ -6,7 +6,7 @@ import functools
 from typing import AsyncGenerator
 
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings
 
 from .clients import (
     DifficultyControllerClient,
