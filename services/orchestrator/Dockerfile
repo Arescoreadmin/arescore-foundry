@@ -2,6 +2,7 @@ FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY services/_generated /app/services/_generated
+COPY services/common /app/services/common
 COPY services/orchestrator/app /app/app
 COPY services/orchestrator/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && \

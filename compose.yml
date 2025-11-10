@@ -1,38 +1,121 @@
 services:
+  nats:
+    image: nats:2.10.11-alpine
+    command:
+      - -js
+      - --http_port=8222
+    ports:
+      - 4222:4222
+      - 8222:8222
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -qO- http://localhost:8222/healthz >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.1.1
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+    ports:
+      - 3100:3100
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -qO- http://localhost:3100/ready >/dev/null 2>&1
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-02T17-50-41Z
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    command:
+      - server
+      - /data
+      - --console-address
+      - ":9001"
+    ports:
+      - 9000:9000
+      - 9001:9001
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
   opa:
     image: openpolicyagent/opa@sha256:c0814ce7811ecef8f1297a8e55774a1d5422e5c18b996b665acbc126124fab19
     command:
-    - run
-    - --server
-    - /policies
+      - run
+      - --server
+      - /policies
     volumes:
-    - ./policies:/policies:ro
+      - ./policies:/policies:ro
     read_only: true
     healthcheck:
       test:
-      - CMD
-      - opa
-      - eval
-      - 1==1
+        - CMD
+        - opa
+        - eval
+        - 1==1
       interval: 10s
       timeout: 3s
       retries: 5
     restart: unless-stopped
+
+  audit_collector:
+    build:
+      context: .
+      dockerfile: services/audit_collector/Dockerfile
+    depends_on:
+      nats:
+        condition: service_healthy
+    environment:
+      FOUNDRY_TELEMETRY_PATH: /app/audits/foundry-events.jsonl
+      FOUNDRY_NATS_URL: nats://nats:4222
+    volumes:
+      - ./audits:/app/audits
+    restart: unless-stopped
+
   orchestrator:
     build:
       context: .
       dockerfile: services/orchestrator/Dockerfile
     depends_on:
-    - opa
+      opa:
+        condition: service_started
+      nats:
+        condition: service_healthy
+      audit_collector:
+        condition: service_started
     environment:
-      FOUNDRY_TELEMETRY_PATH: /app/audits/foundry-events.jsonl
+      FOUNDRY_NATS_URL: nats://nats:4222
     ports:
-    - 8080:8080
-    volumes:
-    - ./audits:/app/audits
+      - 8080:8080
     restart: unless-stopped
+
   spawn_service:
     build:
       context: .
       dockerfile: services/spawn_service/Dockerfile
     depends_on: []
+
+  duckdb:
+    image: ghcr.io/duckdb/duckdb:latest
+    entrypoint:
+      - duckdb
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./:/workspace
+    profiles:
+      - tools
+
+volumes:
+  minio-data:

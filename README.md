@@ -28,6 +28,15 @@ docker-compose up --build
 - Environment variables control API keys and configs.
 - Use non-root users in Dockerfiles for security.
 
+## Telemetry & Auditing
+
+- `compose.yml` now provisions NATS, Loki, MinIO, the audit collector, and DuckDB tooling for local
+  experimentation. Start the core stack with `docker compose up -d nats audit_collector orchestrator`.
+- JSONL audit trails live under `audits/foundry-events.jsonl`; use `./scripts/audit_report.sh` to summarise
+  events and export Parquet snapshots for further analysis.
+- Retention guidance and the hand-off process to the AresCore Evidence Spine are documented in
+  [`docs/audit-retention.md`](docs/audit-retention.md).
+
 ### Local run
 
 1. `cp infra/.env.example infra/.env` and adjust values.

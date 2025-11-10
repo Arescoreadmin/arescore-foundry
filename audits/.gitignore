@@ -1,3 +1,4 @@
 # Ignore generated telemetry logs
 *.jsonl
 *.log
+*.parquet

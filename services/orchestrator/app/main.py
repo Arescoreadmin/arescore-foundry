@@ -3,9 +3,10 @@ from typing import Any, Dict
 
 from fastapi import FastAPI, HTTPException
 
-from .telemetry import emit_event
+from services.common.telemetry import TelemetryPublisher
 
 app = FastAPI(title="orchestrator")
+telemetry_publisher = TelemetryPublisher()
 
 
 # In-memory store for MVP; replace with real controller later
@@ -28,8 +29,18 @@ def ready() -> dict:
     return {"status": "ready"}
 
 
+@app.on_event("startup")
+async def startup() -> None:
+    await telemetry_publisher.connect()
+
+
+@app.on_event("shutdown")
+async def shutdown() -> None:
+    await telemetry_publisher.close()
+
+
 @app.post("/api/scenarios")
-def create_scenario(scenario: Dict[str, Any]) -> dict:
+async def create_scenario(scenario: Dict[str, Any]) -> dict:
     """
     Minimal MVP endpoint:
       - Accepts arbitrary JSON as the scenario payload.
@@ -58,7 +69,7 @@ def create_scenario(scenario: Dict[str, Any]) -> dict:
         template = getattr(scenario, "template", "")
         description = getattr(scenario, "description", "")
 
-    emit_event(
+    await telemetry_publisher.publish(
         "scenario.created",
         {
             "scenario_id": scenario_id,
