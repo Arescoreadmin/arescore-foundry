@@ -13,6 +13,7 @@ fills that gap with a small, dependency-light implementation.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 import importlib
 import json
 import re
@@ -29,6 +30,7 @@ __all__ = [
     "discover_policy_modules",
     "build_policy_bundle",
     "OPAClient",
+    "AuditLogger",
 ]
 
 
@@ -330,4 +332,32 @@ def _get_httpx() -> Any | None:
         except Exception:
             _HTTPX_MODULE = None
     return _HTTPX_MODULE
+
+
+class AuditLogger:
+    """Append-only JSONL logger compatible with historical imports."""
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def log(
+        self,
+        *,
+        service: str,
+        snapshot_id: str | None,
+        status: str,
+        details: Mapping[str, Any] | None = None,
+    ) -> None:
+        entry: dict[str, Any] = {
+            "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "service": service,
+            "snapshot_id": snapshot_id,
+            "status": status,
+        }
+        if details:
+            entry["details"] = dict(details)
+
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
 

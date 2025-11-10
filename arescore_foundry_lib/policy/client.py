@@ -14,6 +14,7 @@ older import path without re-introducing the eager dependency.
 from __future__ import annotations
 
 from . import (
+    AuditLogger,
     OPAClient,
     PolicyBundle,
     PolicyError,
@@ -35,4 +36,5 @@ __all__ = [
     "discover_policy_modules",
     "build_policy_bundle",
     "OPAClient",
+    "AuditLogger",
 ]
