@@ -58,7 +58,8 @@ def summarize(events: List[Dict[str, Any]]) -> str:
             if isinstance(sid, str):
                 scenario_ids.add(sid)
 
-    newest_ts = max((parse_ts(e) for e in events), key=lambda t: t or datetime.min)
+    timestamps = [ts for ts in (parse_ts(e) for e in events) if ts is not None]
+    newest_ts = max(timestamps) if timestamps else None
     newest_ts_str = newest_ts.isoformat() if newest_ts else "unknown"
 
     lines: List[str] = []

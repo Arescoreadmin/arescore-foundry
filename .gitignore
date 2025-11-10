@@ -39,3 +39,4 @@ artifacts/
 audits/*
 !audits/.gitignore
 usage/
+fix_audit_smoke_id.sh
