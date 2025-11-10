@@ -1,0 +1,83 @@
+# Default deny-all egress baseline plus explicit allow-lists for internal
+# control-plane communication. Update the placeholders in the ipBlocks to
+# match the actual CRL distribution network before applying.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: foundry-default-deny-egress
+  namespace: foundry-system
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: orchestrator-egress-allowlist
+  namespace: foundry-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: orchestrator
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: foundry-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: opa
+      ports:
+        - protocol: TCP
+          port: 8181
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: foundry-system
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: revocation-service
+      ports:
+        - protocol: TCP
+          port: 8081
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: revocation-service-egress-allowlist
+  namespace: foundry-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: revocation-service
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    - to:
+        - ipBlock:
+            cidr: 198.51.100.0/24  # TODO: replace with the real CRL distribution network
+      ports:
+        - protocol: TCP
+          port: 443

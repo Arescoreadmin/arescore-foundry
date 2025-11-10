@@ -52,3 +52,13 @@ test_runtime_allows_when_good if {
     "runtime": {"id": "r-1"}
   }
 }
+
+test_runtime_revocation_from_data_feed if {
+  not runtime_revocation.allow with input as {
+    "sig": "s1",
+    "model": {"hash": "good"},
+    "allowed": {"hash": "good"},
+    "runtime": {"id": "r-9"}
+  }
+  with data.runtime_revocation_feed as {"runtime_ids": ["r-9"]}
+}

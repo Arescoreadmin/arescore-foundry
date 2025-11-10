@@ -18,12 +18,25 @@ services:
       timeout: 3s
       retries: 5
     restart: unless-stopped
+  revocation_service:
+    build:
+      context: .
+      dockerfile: services/revocation_service/Dockerfile
+    environment:
+      CRL_URL: ${CRL_URL:-https://crl.example.com/latest.crl}
+      OPA_BASE_URL: http://opa:8181
+    depends_on:
+    - opa
+    ports:
+    - 8081:8081
+    restart: unless-stopped
   orchestrator:
     build:
       context: .
       dockerfile: services/orchestrator/Dockerfile
     depends_on:
     - opa
+    - revocation_service
     environment:
       FOUNDRY_TELEMETRY_PATH: /app/audits/foundry-events.jsonl
     ports:

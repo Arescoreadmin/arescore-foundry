@@ -1,5 +1,7 @@
 FROM python:3.12-slim
 
+RUN addgroup --system app && adduser --system --ingroup app app
+
 WORKDIR /app
 
 COPY services/_generated /app/services/_generated
@@ -9,7 +11,10 @@ COPY templates /templates
 
 RUN python -m pip install --upgrade pip && \
     if [ -f /app/app/requirements.txt ]; then \
-      pip install -r /app/app/requirements.txt; \
-    fi
+      pip install --no-cache-dir -r /app/app/requirements.txt; \
+    fi && \
+    chown -R app:app /app /templates
+
+USER app
 
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

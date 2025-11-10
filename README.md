@@ -20,13 +20,15 @@ docker-compose up --build
 - MutationEngine: evolves AI strategies
 - LogIndexer: central logging service
 - BehaviorAnalytics: analyzes behavior and alerts
+- Runtime Revocation Service: ingests CRLs and feeds OPA policy data
 - Frontend: React dashboard
 
 ## Notes
 
 - All services expose `/health` endpoint for health checks.
 - Environment variables control API keys and configs.
-- Use non-root users in Dockerfiles for security.
+- Use non-root users in Dockerfiles for security (enforced across all services).
+- Review the hardening guide in [`docs/security/security-posture.md`](docs/security/security-posture.md) for network controls, revocation workflows, and incident response procedures.
 
 ### Local run
 
