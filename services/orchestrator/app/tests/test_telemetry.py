@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from services.orchestrator.app.telemetry import emit_event
+from ..telemetry import emit_event
 
 
 @pytest.fixture(autouse=True)
