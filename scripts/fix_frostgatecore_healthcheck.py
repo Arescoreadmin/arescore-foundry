@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-import os, sys, time, subprocess, textwrap, json
+import json
+import os
+import subprocess
+import sys
+import textwrap
+import time
 
 def run(cmd, cwd=None, check=True, capture=False):
     print("==> $", cmd)

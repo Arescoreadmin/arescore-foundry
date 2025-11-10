@@ -1,5 +1,4 @@
 from copy import deepcopy
-import uuid
 from datetime import datetime, timezone
 
 import httpx

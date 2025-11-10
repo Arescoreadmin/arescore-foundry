@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-import os, sys, time, json, subprocess, shlex, textwrap
+import json
+import os
+import shlex
+import subprocess
+import sys
+import textwrap
+import time
 
 def run_list(args, cwd=None, check=True, capture=False):
     print("==> $", " ".join(shlex.quote(a) for a in args))
@@ -109,7 +115,8 @@ def main():
 
     # Try to nudge RAG caches; tolerate missing requests/curl.
     try:
-        import uuid, requests
+        import requests
+        import uuid
         cid = str(uuid.uuid4())
         headers = {"X-Correlation-ID": cid}
         requests.post("http://localhost:8001/dev/embed",
