@@ -3,6 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY services/_generated /app/services/_generated
 COPY services/orchestrator/app /app/app
+COPY arescore_foundry_lib /app/arescore_foundry_lib
 COPY services/orchestrator/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && \
     python -m pip install --upgrade pip && \
