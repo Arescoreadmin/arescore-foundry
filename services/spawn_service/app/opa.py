@@ -46,4 +46,7 @@ class OPAClient:
 
 
 _settings = get_settings()
-opa_client = OPAClient(base_url=str(_settings.opa_url or ""), policy_path=_settings.opa_policy_path)
+opa_client = OPAClient(
+    base_url=str(_settings.opa_url or ""),
+    policy_path=_settings.opa_policy_path,
+)

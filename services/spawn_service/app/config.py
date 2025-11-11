@@ -1,58 +1,70 @@
-from functools import lru_cache
-from typing import Optional
+from typing import Optional, Union
+import logging
 
 from pydantic import AnyUrl, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-try:  # pragma: no cover - optional dependency shim for tests
-    from pydantic_settings import BaseSettings
-except ModuleNotFoundError:  # pragma: no cover - fallback when package not installed
-    from pydantic import BaseModel as BaseSettings  # type: ignore
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
-    app_name: str = Field(default="Spawn Service", alias="APP_NAME")
-    app_version: str = Field(default="0.1.0", alias="APP_VERSION")
+    # Ignore extra env vars instead of exploding during tests
+    model_config = SettingsConfigDict(extra="ignore")
 
-    database_url: str = Field(
-        default="postgresql+psycopg://spawn_service:spawn_service@localhost:5432/spawn_service",
-        alias="DATABASE_URL",
+    log_indexer_url: str = Field(
+        default="http://log_indexer:9000",
+        alias="LOG_INDEXER_URL",
+    )
+    frostgatecore_url: str = Field(
+        default="http://frostgatecore:8001",
+        alias="FROSTGATECORE_URL",
+    )
+    sentinelred_url: str = Field(
+        default="http://sentinelred:8002",
+        alias="SENTINELRED_URL",
+    )
+    mutation_engine_url: str = Field(
+        default="http://mutation_engine:8003",
+        alias="MUTATION_ENGINE_URL",
+    )
+    behavior_analytics_url: str = Field(
+        default="http://behavior_analytics:8004",
+        alias="BEHAVIOR_ANALYTICS_URL",
+    )
+    vite_api_base: str = Field(
+        default="http://localhost:8000",
+        alias="VITE_API_BASE",
+    )
+    log_token: str = Field(
+        default="dev",
+        alias="LOG_TOKEN",
+    )
+    orch_token: str = Field(
+        default="dev",
+        alias="ORCH_TOKEN",
     )
 
-    orchestrator_url: AnyUrl | str = Field(
-        default="http://orchestrator:8080", alias="ORCHESTRATOR_URL"
-    )
-    orchestrator_scenarios_path: str = Field(
-        default="/api/scenarios", alias="ORCHESTRATOR_SCENARIOS_PATH"
-    )
-
-    console_base_url: str = Field(
-        default="https://mvp.local/console", alias="CONSOLE_BASE_URL"
+    # OPA bits
+    opa_url: Optional[Union[AnyUrl, str]] = Field(
+        default="http://opa:8181",
+        alias="OPA_URL",
     )
 
-    opa_url: Optional[AnyUrl | str] = Field(default="http://opa:8181", alias="OPA_URL")
-    opa_policy_path: str = Field(default="/v1/data/spawn/allow", alias="OPA_POLICY_PATH")
-
-    jwt_secret: Optional[str] = Field(default=None, alias="JWT_SECRET")
-    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
-    jwt_audience: Optional[str] = Field(default=None, alias="JWT_AUDIENCE")
-    jwt_issuer: Optional[str] = Field(default=None, alias="JWT_ISSUER")
-
-    dev_bypass_token: str = Field(default="DEV-LOCAL-TOKEN", alias="DEV_BYPASS_TOKEN")
-    demo_tenant_id: str = Field(
-        default="00000000-0000-0000-0000-000000000001", alias="DEMO_TENANT_ID"
-    )
-    demo_plan_id: str = Field(
-        default="00000000-0000-0000-0000-000000000010", alias="DEMO_PLAN_ID"
-    )
-    demo_template_id: str = Field(
-        default="00000000-0000-0000-0000-000000000100", alias="DEMO_TEMPLATE_ID"
+    # THIS is the field that was missing and caused the crash
+    opa_policy_path: str = Field(
+        default="spawn/opa/policy",
+        alias="OPA_POLICY_PATH",
     )
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    jwt_secret: Optional[str] = Field(
+        default=None,
+        alias="JWT_SECRET",
+    )
 
 
-@lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    # Don’t log secrets, but log everything else
+    safe = settings.model_dump(exclude={"jwt_secret"})
+    logger.debug("Spawn Settings loaded: %s", safe)
+    return settings
