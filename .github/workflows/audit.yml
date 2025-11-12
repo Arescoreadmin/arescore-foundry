@@ -91,7 +91,8 @@ jobs:
       - name: Yamllint (YAML)
         run: |
           set -euo pipefail
-          if git ls-files '*.yml' '*.yaml' | grep -q .; then
+          mapfile -t yaml_files < <(git ls-files '*.yml' '*.yaml' 2>/dev/null || true)
+          if (( ${#yaml_files[@]} )); then
             # tolerate long lines and truthy in compose; keep everything else strict
             printf '%s\n' \
               'extends: default' \
@@ -99,7 +100,7 @@ jobs:
               '  line-length: disable' \
               '  truthy: disable' \
               > .yamllint
-            yamllint -s $(git ls-files '*.yml' '*.yaml')
+            yamllint -s "${yaml_files[@]}"
           else
             echo "No YAML files. Skipping yamllint."
           fi
@@ -124,4 +125,3 @@ jobs:
             echo "No Rego policies. Skipping OPA tests."
           fi
         shell: bash
-
