@@ -1,10 +1,10 @@
-# scripts/smoke_overlay.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
 COMPOSE="docker compose --profile control-plane --profile range-plane -f compose.yml -f compose.federated.yml"
 CURL="curl -fsS --max-time 3"
-RETRIES=${RETRIES:-40}     # ~40s worst-case
+
+RETRIES=${RETRIES:-40}
 SLEEP=${SLEEP:-1}
 
 say() { printf '%b\n' "$*"; }
@@ -21,7 +21,7 @@ say "==> Ensuring stack is up (compose + federated)"
 $COMPOSE up -d --remove-orphans >/dev/null
 $COMPOSE ps
 
-# --- 2) Wait for container health (robust via docker inspect)
+# --- 2) Wait for container health or at least 'running'
 say "==> Waiting for containers to be healthy"
 need_healthy=(opa nats minio loki orchestrator ingestors fl_coordinator consent_registry evidence_bundler)
 
@@ -29,7 +29,6 @@ health_of() {
   local svc="$1"
   local cid="$($COMPOSE ps -q "$svc" 2>/dev/null | head -n1)"
   [ -z "$cid" ] && { echo "missing"; return; }
-  # If no Healthcheck is defined, treat "running" as healthy
   local has_hc
   has_hc="$(docker inspect -f '{{if .State.Health}}yes{{end}}' "$cid" 2>/dev/null || true)"
   if [ "$has_hc" = "yes" ]; then
@@ -48,32 +47,16 @@ for svc in "${need_healthy[@]}"; do
       break
     fi
     i=$((i+1))
-    if [ $i -ge ${RETRIES:-40} ]; then
+    if [ $i -ge $RETRIES ]; then
       err "$svc did not become healthy (last status: $status)"
-      # show last 40 log lines to help debug
-      $COMPOSE logs --tail=40 "$svc" || true
+      $COMPOSE logs --tail=80 "$svc" || true
       exit 1
     fi
-    sleep "${SLEEP:-1}"
+    sleep "$SLEEP"
   done
 done
 
-
-# --- 3) HTTP probe helpers with retries (handles conn-refused/reset)
-wait_http() {
-  local method="$1" url="$2" body="${3:-}"
-  local i=0
-  while :; do
-    if [ "$method" = "GET" ]; then
-      if $CURL "$url" >/dev/null 2>&1; then return 0; fi
-    else
-      if printf '%s' "$body" | $CURL -X "$method" -d @- "$url" >/dev/null 2>&1; then return 0; fi
-    fi
-    i=$((i+1)); [ $i -ge $RETRIES ] && return 1
-    sleep "$SLEEP"
-  done
-}
-
+# --- 3) HTTP checks
 say "==> Service health checks"
 declare -A checks=(
   ["fl_coordinator (GET /health)"]="GET http://127.0.0.1:9092/health"
@@ -87,12 +70,16 @@ declare -A checks=(
 fail=0
 for label in "${!checks[@]}"; do
   read -r method url <<<"${checks[$label]}"
-  if wait_http "$method" "$url"; then
-    ok "$label"
-  else
-    err "$label (URL: $url)"
-    fail=1
-  fi
+  i=0
+  while :; do
+    if [ "$method" = "GET" ]; then
+      $CURL "$url" >/dev/null 2>&1 && { ok "$label"; break; }
+    else
+      printf '{}' | $CURL -X "$method" -d @- "$url" >/dev/null 2>&1 && { ok "$label"; break; }
+    fi
+    i=$((i+1)); [ $i -ge $RETRIES ] && { err "$label (URL: $url)"; fail=1; break; }
+    sleep "$SLEEP"
+  done
 done
 
 [ $fail -eq 0 ] && { say "All green."; exit 0; } || { say "One or more checks failed."; exit 1; }
