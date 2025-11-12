@@ -1,0 +1,30 @@
+name: smoke-tests
+
+on:
+  pull_request:
+    paths:
+      - "compose.yml"
+      - "compose.*.yml"
+      - "services/**"
+      - "scripts/smoke_overlay.sh"
+  workflow_dispatch: {}
+
+jobs:
+  overlay-smoke:
+    name: Docker Compose smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker version
+        run: docker version
+
+      - name: Smoke overlays
+        run: bash scripts/smoke_overlay.sh
+
+      - name: Teardown
+        if: always()
+        run: docker compose --profile control-plane --profile range-plane -f compose.yml -f compose.federated.yml down -v

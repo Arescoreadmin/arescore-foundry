@@ -1,0 +1,22 @@
+name: repo-audit
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run basic repo audit
+        run: |
+          echo "Linting repo structure..."
+          test -d .github && echo "✓ .github exists" || (echo "missing .github" && exit 1)
+          echo "Audit complete."

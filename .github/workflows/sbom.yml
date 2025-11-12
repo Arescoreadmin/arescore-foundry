@@ -1,0 +1,45 @@
+name: sbom-scan
+
+on:
+  pull_request:
+    paths:
+      - "services/**"
+      - "compose.yml"
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: orchestrator
+            dockerfile: services/orchestrator/Dockerfile
+          - name: spawn_service
+            dockerfile: services/spawn_service/Dockerfile
+          - name: ingestors
+            dockerfile: services/ingestors/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          dockerfile: ${{ matrix.dockerfile }}
+          artifact-name: sbom-${{ matrix.name }}.spdx.json
+          output-format: spdx-json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.name }}
+          path: sbom-${{ matrix.name }}.spdx.json

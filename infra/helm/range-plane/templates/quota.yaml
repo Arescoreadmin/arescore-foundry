@@ -1,0 +1,12 @@
+{{- range $tenant := .Values.tenants }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ printf "%s%s-quota" $.Values.namespacePrefix $tenant.slug }}
+  namespace: {{ printf "%s%s" $.Values.namespacePrefix $tenant.slug }}
+spec:
+  hard:
+    requests.cpu: {{ $tenant.quota.cpu | quote }}
+    requests.memory: {{ $tenant.quota.memory | quote }}
+---
+{{- end }}

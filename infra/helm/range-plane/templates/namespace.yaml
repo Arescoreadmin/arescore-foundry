@@ -1,0 +1,13 @@
+{{- range $tenant := .Values.tenants }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ printf "%s%s" $.Values.namespacePrefix $tenant.slug }}
+  labels:
+    foundry.arescore.dev/plane: range
+    foundry.arescore.dev/tenant: {{ $tenant.slug }}
+    foundry.arescore.dev/control: {{ $.Values.controlPlaneNamespace }}
+  annotations:
+    foundry.arescore.dev/display-name: {{ $tenant.displayName | quote }}
+---
+{{- end }}

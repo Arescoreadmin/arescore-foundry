@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: foundry-plane-settings
+  namespace: {{ .Values.namespace }}
+  labels:
+    foundry.arescore.dev/plane: control
+data:
+  plane: control
+  nats_url: {{ .Values.nats.url | quote }}
+  opa_bundle: {{ .Values.opa.bundle | quote }}
