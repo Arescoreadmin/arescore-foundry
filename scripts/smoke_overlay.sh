@@ -1,3 +1,4 @@
+# scripts/smoke_overlay.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -21,7 +22,7 @@ say "==> Ensuring stack is up (compose + federated)"
 $COMPOSE up -d --remove-orphans >/dev/null
 $COMPOSE ps
 
-# --- 2) Wait for container health or at least 'running'
+# --- 2) Wait for container health (robust via docker inspect)
 say "==> Waiting for containers to be healthy"
 need_healthy=(opa nats minio loki orchestrator ingestors fl_coordinator consent_registry evidence_bundler)
 
@@ -56,7 +57,21 @@ for svc in "${need_healthy[@]}"; do
   done
 done
 
-# --- 3) HTTP checks
+# --- 3) HTTP probe helpers with retries
+wait_http() {
+  local method="$1" url="$2" body="${3:-}"
+  local i=0
+  while :; do
+    if [ "$method" = "GET" ]; then
+      if $CURL "$url" >/dev/null 2>&1; then return 0; fi
+    else
+      if printf '%s' "$body" | $CURL -X "$method" -d @- "$url" >/dev/null 2>&1; then return 0; fi
+    fi
+    i=$((i+1)); [ $i -ge $RETRIES ] && return 1
+    sleep "$SLEEP"
+  done
+}
+
 say "==> Service health checks"
 declare -A checks=(
   ["fl_coordinator (GET /health)"]="GET http://127.0.0.1:9092/health"
@@ -70,16 +85,12 @@ declare -A checks=(
 fail=0
 for label in "${!checks[@]}"; do
   read -r method url <<<"${checks[$label]}"
-  i=0
-  while :; do
-    if [ "$method" = "GET" ]; then
-      $CURL "$url" >/dev/null 2>&1 && { ok "$label"; break; }
-    else
-      printf '{}' | $CURL -X "$method" -d @- "$url" >/dev/null 2>&1 && { ok "$label"; break; }
-    fi
-    i=$((i+1)); [ $i -ge $RETRIES ] && { err "$label (URL: $url)"; fail=1; break; }
-    sleep "$SLEEP"
-  done
+  if wait_http "$method" "$url"; then
+    ok "$label"
+  else
+    err "$label (URL: $url)"
+    fail=1
+  fi
 done
 
 [ $fail -eq 0 ] && { say "All green."; exit 0; } || { say "One or more checks failed."; exit 1; }

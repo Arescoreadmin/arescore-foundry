@@ -2,19 +2,15 @@ services:
   opa:
     profiles:
       - control-plane
-
   orchestrator:
     profiles:
       - control-plane
-
   spawn_service:
     profiles:
       - control-plane
-
   nats:
     profiles:
       - control-plane
-
   ingestors:
     image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescoreadmin/arescore-foundry}/ingestors:latest
     environment:
@@ -25,14 +21,12 @@ services:
       - observability
     profiles:
       - range-plane
-
   minio:
     image: quay.io/minio/minio:RELEASE.2024-04-18T19-09-19Z
     networks:
       - range-plane
     profiles:
       - range-plane
-
   loki:
     image: grafana/loki:2.9.4
     networks:
@@ -40,7 +34,6 @@ services:
       - observability
     profiles:
       - range-plane
-
   fl_coordinator:
     build:
       context: .
@@ -57,7 +50,6 @@ services:
       - range-plane
     profiles:
       - range-plane
-
   consent_registry:
     build:
       context: .
@@ -74,7 +66,6 @@ services:
       - range-plane
     profiles:
       - range-plane
-
   evidence_bundler:
     build:
       context: .

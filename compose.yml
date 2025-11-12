@@ -6,70 +6,46 @@ x-default-logging: &default-logging
     options:
       max-size: "10m"
       max-file: "5"
-
 x-default-restart: &default-restart
   restart: unless-stopped
-
 networks:
   control-plane:
   range-plane:
   observability:
-
 volumes:
   nats-data:
   minio-data:
   loki-data:
-
 services:
   # ---------- Infra: NATS ----------
   nats:
     image: nats:2.10.8
     container_name: frostgate-foundry-nats-1
     # ENTRYPOINT is /nats-server, only pass flags here
-    command:
-      - -js
-      - -m
-      - "8222"
-      - -sd
-      - /var/lib/nats/jetstream
+    command: ["-js", "-m", "8222"]
     ports:
-      - "4222:4222"   # client
-      - "8222:8222"   # monitoring
+      - "4222:4222" # client
+      - "8222:8222" # monitoring
     volumes:
       - nats-data:/var/lib/nats/jetstream
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8222/varz >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
     networks:
       - control-plane
-    <<: [*default-logging, *default-restart]
-
+    !!merge <<: [*default-logging, *default-restart]
   # ---------- Infra: MinIO ----------
   minio:
-    image: minio/minio:latest   # pin in prod
-    container_name: frostgate-foundry-minio-1
+    image: quay.io/minio/minio:RELEASE.2024-10-13T07-09-29Z
+    command: [server, /data, --console-address, ':9001']
+    ports:
+      - 9000:9000
+      - 9001:9001
     environment:
-      MINIO_ROOT_USER: admin          # TODO: change
-      MINIO_ROOT_PASSWORD: adminadmin # TODO: change
-    command: ["server", "/data", "--console-address", ":9001"]
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     volumes:
       - minio-data:/data
-    ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # Console
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9000/minio/health/live >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 15s
     networks:
       - control-plane
-    <<: [*default-logging, *default-restart]
-
+    !!merge <<: [*default-logging, *default-restart]
   # ---------- Infra: Loki ----------
   loki:
     image: grafana/loki:2.9.0
@@ -87,8 +63,7 @@ services:
       start_period: 10s
     networks:
       - observability
-    <<: [*default-logging, *default-restart]
-
+    !!merge <<: [*default-logging, *default-restart]
   # ---------- Infra: OPA ----------
   opa:
     image: openpolicyagent/opa:latest
@@ -98,28 +73,39 @@ services:
       - --server
       - --addr=0.0.0.0:8181
       - --diagnostic-addr=0.0.0.0:8282
-      - --ignore=.*\.rego\.disabled
       - /policies
     volumes:
-      - ./opa:/policies:ro    # adjust if your policies live elsewhere
+      - ./policies:/policies:ro # adjust if your policies live elsewhere
     ports:
       - "8181:8181"
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8181/health >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 20
-      start_period: 20s
+      test: ["CMD", "/opa", "version"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
     networks:
       - control-plane
-    <<: [*default-logging, *default-restart]
-
+    !!merge <<: [*default-logging, *default-restart]
   # ---------- App: Orchestrator ----------
   orchestrator:
     build:
       context: .
       dockerfile: services/orchestrator/Dockerfile
     image: frostgate-foundry-orchestrator
+    command: ["/entrypoint.sh"]
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).status==200 else sys.exit(1)
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
     container_name: frostgate-foundry-orchestrator-1
     depends_on:
       - nats
@@ -129,14 +115,26 @@ services:
     networks:
       - control-plane
       - range-plane
-    <<: [*default-logging, *default-restart]
-
+    !!merge <<: [*default-logging, *default-restart]
   # ---------- App: Ingestors ----------
   ingestors:
     build:
       context: .
       dockerfile: services/ingestors/Dockerfile
-    image: frostgate-foundry-ingestors
+    image: ghcr.io/arescoreadmin/arescore-foundry/ingestors:latest
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+    ports:
+      - "8070:8080"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).status==200 else sys.exit(1)
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
     container_name: frostgate-foundry-ingestors-1
     depends_on:
       - nats
@@ -145,8 +143,7 @@ services:
     networks:
       - control-plane
       - range-plane
-    <<: [*default-logging, *default-restart]
-
+    !!merge <<: [*default-logging, *default-restart]
   # ---------- App: Spawn Service ----------
   spawn_service:
     build:
@@ -161,4 +158,4 @@ services:
     networks:
       - control-plane
       - range-plane
-    <<: [*default-logging, *default-restart]
+    !!merge <<: [*default-logging, *default-restart]
