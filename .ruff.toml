@@ -1,0 +1,11 @@
+target-version = "py312"
+line-length = 100
+
+extend-exclude = [
+  "services/_generated",
+  "backend/frostgatecore/Tests",  # legacy tests with style issues
+]
+
+[lint]
+# Temporarily ignore noisy/legacy codes; tighten later.
+ignore = ["E401","E402","E701","E702","E731","F401","F821"]
