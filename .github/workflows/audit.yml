@@ -1,22 +1,126 @@
-name: repo-audit
+name: Audit
 
 on:
   pull_request:
+    paths:
+      - "**/*.py"
+      - "**/*.sh"
+      - "**/*.rego"
+      - "**/Dockerfile"
+      - "**/*.yml"
+      - "**/*.yaml"
+      - ".github/workflows/**"
   push:
     branches: [ main ]
-  workflow_dispatch:
+    paths:
+      - "**/*.py"
+      - "**/*.sh"
+      - "**/*.rego"
+      - "**/Dockerfile"
+      - "**/*.yml"
+      - "**/*.yaml"
+      - ".github/workflows/**"
 
 jobs:
-  lint:
+  audit:
+    name: Static checks
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    timeout-minutes: 10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run basic repo audit
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python linters
         run: |
-          echo "Linting repo structure..."
-          test -d .github && echo "✓ .github exists" || (echo "missing .github" && exit 1)
-          echo "Audit complete."
+          set -euo pipefail
+          pip install --upgrade pip
+          pip install ruff bandit yamllint
+        shell: bash
+
+      - name: Ruff (Python)
+        run: |
+          set -euo pipefail
+          if git ls-files '*.py' | grep -q .; then
+            ruff check --output-format=github .
+          else
+            echo "No Python files. Skipping ruff."
+          fi
+        shell: bash
+
+      - name: Bandit (security, Python)
+        run: |
+          set -euo pipefail
+          if git ls-files '*.py' | grep -q .; then
+            bandit -q -r backend services || { echo "Bandit found issues"; exit 1; }
+          else
+            echo "No Python files. Skipping bandit."
+          fi
+        shell: bash
+
+      - name: Shellcheck (bash scripts)
+        run: |
+          set -euo pipefail
+          mapfile -t sh_files < <(git ls-files '*.sh' 'scripts/*' 2>/dev/null || true)
+          if (( ${#sh_files[@]} )); then
+            docker run --rm -v "$PWD":/mnt -w /mnt koalaman/shellcheck:stable \
+              "${sh_files[@]}"
+          else
+            echo "No shell scripts. Skipping shellcheck."
+          fi
+        shell: bash
+
+      - name: Hadolint (Dockerfiles)
+        run: |
+          set -euo pipefail
+          mapfile -t dockerfiles < <(git ls-files '*Dockerfile' 'Dockerfile' 2>/dev/null || true)
+          if (( ${#dockerfiles[@]} )); then
+            docker run --rm -v "$PWD":/mnt -w /mnt hadolint/hadolint:latest \
+              hadolint "${dockerfiles[@]}"
+          else
+            echo "No Dockerfiles. Skipping hadolint."
+          fi
+        shell: bash
+
+      - name: Yamllint (YAML)
+        run: |
+          set -euo pipefail
+          if git ls-files '*.yml' '*.yaml' | grep -q .; then
+            # tolerate long lines and truthy in compose; keep everything else strict
+            cat > .yamllint <<'YAML'
+            extends: default
+            rules:
+              line-length: disable
+              truthy: disable
+            YAML
+            yamllint -s $(git ls-files '*.yml' '*.yaml')
+          else
+            echo "No YAML files. Skipping yamllint."
+          fi
+        shell: bash
+
+      - name: actionlint (GitHub Workflows)
+        run: |
+          set -euo pipefail
+          if git ls-files '.github/workflows/*.yml' '.github/workflows/*.yaml' | grep -q .; then
+            docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest -color
+          else
+            echo "No workflows. Skipping actionlint."
+          fi
+        shell: bash
+
+      - name: Rego unit tests (OPA)
+        run: |
+          set -euo pipefail
+          if git ls-files 'policies/*.rego' 'policies/*_test.rego' | grep -q .; then
+            docker run --rm -v "$PWD":/src -w /src openpolicyagent/opa:1.10.0 test -v policies
+          else
+            echo "No Rego policies. Skipping OPA tests."
+          fi
+        shell: bash
