@@ -2,15 +2,39 @@ services:
   opa:
     profiles:
       - control-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
   orchestrator:
     profiles:
       - control-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
   spawn_service:
     profiles:
       - control-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
   nats:
     profiles:
       - control-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
   ingestors:
     image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescoreadmin/arescore-foundry}/ingestors:latest
     environment:
@@ -21,12 +45,24 @@ services:
       - observability
     profiles:
       - range-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
   minio:
     image: quay.io/minio/minio:RELEASE.2024-04-18T19-09-19Z
     networks:
       - range-plane
     profiles:
       - range-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
   loki:
     image: grafana/loki:2.9.4
     networks:
@@ -34,6 +70,12 @@ services:
       - observability
     profiles:
       - range-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
   fl_coordinator:
     build:
       context: .
@@ -50,6 +92,11 @@ services:
       - range-plane
     profiles:
       - range-plane
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
   consent_registry:
     build:
       context: .
@@ -66,6 +113,11 @@ services:
       - range-plane
     profiles:
       - range-plane
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
   evidence_bundler:
     build:
       context: .
@@ -82,3 +134,8 @@ services:
       - range-plane
     profiles:
       - range-plane
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
