@@ -97,6 +97,8 @@ services:
       - run
       - --server
       - --addr=0.0.0.0:8181
+      - --diagnostic-addr=0.0.0.0:8282
+      - --ignore=.*\.rego\.disabled
       - /policies
     volumes:
       - ./opa:/policies:ro    # adjust if your policies live elsewhere
@@ -105,9 +107,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8181/health >/dev/null 2>&1 || exit 1"]
       interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
+      timeout: 10s
+      retries: 20
+      start_period: 20s
     networks:
       - control-plane
     <<: [*default-logging, *default-restart]
