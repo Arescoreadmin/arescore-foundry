@@ -73,6 +73,26 @@ async def test_authorize_spawn_allows_when_policy_approves(monkeypatch: pytest.M
 
 
 @pytest.mark.anyio
+async def test_authorize_spawn_handles_relative_policy_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    dummy_response = DummyResponse(payload={"result": {"allow": True}})
+    dummy_client = DummyAsyncClient(response=dummy_response)
+
+    def fake_async_client(*args, **kwargs):  # noqa: ANN001, ARG001
+        return dummy_client
+
+    monkeypatch.setattr(httpx, "AsyncClient", fake_async_client)
+
+    payload = {"tenant": {"id": "t-1"}}
+    client = OPAClient(base_url="http://opa:8181/", policy_path="spawn/opa/policy")
+
+    await client.authorize_spawn(payload)
+
+    assert dummy_client.calls == [
+        ("http://opa:8181/spawn/opa/policy", {"input": payload}),
+    ]
+
+
+@pytest.mark.anyio
 async def test_authorize_spawn_raises_forbidden_with_reason(monkeypatch: pytest.MonkeyPatch) -> None:
     dummy_response = DummyResponse(payload={"result": {"allow": False, "reason": "quota exceeded"}})
     dummy_client = DummyAsyncClient(response=dummy_response)

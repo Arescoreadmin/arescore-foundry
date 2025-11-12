@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import urljoin
 
 import httpx
 from fastapi import HTTPException, status
@@ -11,13 +12,23 @@ from .config import get_settings
 class OPAClient:
     def __init__(self, base_url: str, policy_path: str) -> None:
         self.base_url = base_url.rstrip("/") if base_url else ""
-        self.policy_path = policy_path
+        self.policy_path = policy_path or ""
+
+    def _policy_url(self) -> str:
+        """Return the fully qualified policy URL, handling stray slashes."""
+
+        if not self.base_url:
+            return ""
+
+        normalized_base = f"{self.base_url.rstrip('/')}/"
+        normalized_path = self.policy_path.lstrip("/")
+        return urljoin(normalized_base, normalized_path)
 
     async def authorize_spawn(self, payload: dict[str, Any]) -> None:
         if not self.base_url:
             return
 
-        url = f"{self.base_url}{self.policy_path}"
+        url = self._policy_url()
         async with httpx.AsyncClient(timeout=5.0) as client:
             try:
                 response = await client.post(url, json={"input": payload})
