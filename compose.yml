@@ -7,35 +7,31 @@ x-defaults: &defaults
     options:
       max-size: "10m"
       max-file: "5"
-
 networks:
   control-plane: {}
   range-plane: {}
   observability: {}
-
 volumes:
   nats-data: {}
   minio-data: {}
   loki-data: {}
-
 services:
   # ---------- Infra: NATS ----------
   nats:
     image: nats:2.10.8
-    command: ["-js","-m","8222","--server_name","foundry-nats"]
+    command: ["-js", "-m", "8222", "--server_name", "foundry-nats"]
     ports:
-      - "4222:4222"  # client
-      - "8222:8222"  # monitor UI
+      - "4222:4222" # client
+      - "8222:8222" # monitor UI
     networks:
       - control-plane
     volumes:
       - nats-data:/var/lib/nats/jetstream
-    <<: *defaults
-
+    !!merge <<: *defaults
   # ---------- Infra: MinIO ----------
   minio:
     image: quay.io/minio/minio:RELEASE.2024-04-18T19-09-19Z
-    command: ["server","/data","--console-address",":9001"]
+    command: ["server", "/data", "--console-address", ":9001"]
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -46,11 +42,10 @@ services:
       - control-plane
     volumes:
       - minio-data:/data
-    <<: *defaults
-
+    !!merge <<: *defaults
   # ---------- Infra: Loki ----------
   loki:
-    image: grafana/loki:2.9.4
+    image: grafana/loki@sha256:f379a20ce9dd815884ed6446aad8819b81a8ba4d36b548ca14be8cecbc6cbca0
     ports:
       - "3100:3100"
     networks:
@@ -58,20 +53,18 @@ services:
       - range-plane
     volumes:
       - loki-data:/loki
-    <<: *defaults
-
+    !!merge <<: *defaults
   # ---------- Infra: OPA ----------
   opa:
-    image: openpolicyagent/opa:latest
-    command: ["run","--server","-l","info","/policies"]
+    image: openpolicyagent/opa@sha256:4715d0574ca2f8c5ecd65b4e5b0833a53aea0f79c31e52a93972b104bbd614fd
+    command: ["run", "--server", "-l", "info", "/policies"]
     ports:
       - "8181:8181"
     networks:
       - control-plane
     volumes:
       - ./policies:/policies:ro
-    <<: *defaults
-
+    !!merge <<: *defaults
   # ---------- App: Orchestrator ----------
   orchestrator:
     build:
@@ -92,8 +85,7 @@ services:
         condition: service_started
     networks:
       - control-plane
-    <<: *defaults
-
+    !!merge <<: *defaults
   # ---------- App: Ingestors ----------
   ingestors:
     build:
@@ -112,8 +104,7 @@ services:
     networks:
       - control-plane
       - observability
-    <<: *defaults
-
+    !!merge <<: *defaults
   # ---------- App: Spawn Service ----------
   spawn_service:
     build:
@@ -130,8 +121,7 @@ services:
     networks:
       - control-plane
       - range-plane
-    <<: *defaults
-
+    !!merge <<: *defaults
   # ---------- App: FL Coordinator ----------
   fl_coordinator:
     build:
@@ -146,8 +136,7 @@ services:
         condition: service_started
     networks:
       - range-plane
-    <<: *defaults
-
+    !!merge <<: *defaults
   # ---------- App: Consent Registry ----------
   consent_registry:
     build:
@@ -157,8 +146,7 @@ services:
       - "9093:8080"
     networks:
       - range-plane
-    <<: *defaults
-
+    !!merge <<: *defaults
   # ---------- App: Evidence Bundler ----------
   evidence_bundler:
     build:
@@ -168,4 +156,4 @@ services:
       - "9094:8080"
     networks:
       - range-plane
-    <<: *defaults
+    !!merge <<: *defaults
