@@ -1,161 +1,176 @@
-# docker compose v2+ – no version key
+# FrostGate Foundry — core stack
+# Compose v2/3 compatible (no top-level "version")
 
-x-default-logging: &default-logging
-  logging:
-    driver: "json-file"
-    options:
-      max-size: "10m"
-      max-file: "5"
-x-default-restart: &default-restart
-  restart: unless-stopped
 networks:
   control-plane:
-  range-plane:
   observability:
+
 volumes:
   nats-data:
   minio-data:
   loki-data:
+
 services:
   # ---------- Infra: NATS ----------
   nats:
     image: nats:2.10.8
-    container_name: frostgate-foundry-nats-1
-    # ENTRYPOINT is /nats-server, only pass flags here
     command: ["-js", "-m", "8222"]
     ports:
-      - "4222:4222" # client
-      - "8222:8222" # monitoring
+      - "4222:4222"   # clients
+      - "8222:8222"   # monitoring UI/API
     volumes:
       - nats-data:/var/lib/nats/jetstream
     networks:
       - control-plane
-    !!merge <<: [*default-logging, *default-restart]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # No healthcheck: base image lacks curl/wget/nc. External smoke tests cover it.
+
   # ---------- Infra: MinIO ----------
   minio:
-    image: quay.io/minio/minio:RELEASE.2024-10-13T07-09-29Z
-    command: [server, /data, --console-address, ':9001']
-    ports:
-      - 9000:9000
-      - 9001:9001
+    image: quay.io/minio/minio:RELEASE.2024-04-18T19-09-19Z
+    command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio-data:/data
     networks:
       - control-plane
-    !!merge <<: [*default-logging, *default-restart]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
   # ---------- Infra: Loki ----------
   loki:
-    image: grafana/loki:2.9.0
-    container_name: frostgate-foundry-loki-1
-    command: ["-config.file=/etc/loki/local-config.yaml"]
-    volumes:
-      - loki-data:/loki
+    image: grafana/loki:2.9.4
+    command: ["-config.file=/etc/loki/config.yml"]
     ports:
       - "3100:3100"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3100/ready >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    networks:
-      - observability
-    !!merge <<: [*default-logging, *default-restart]
-  # ---------- Infra: OPA ----------
-  opa:
-    image: openpolicyagent/opa:latest
-    container_name: frostgate-foundry-opa-1
-    command:
-      - run
-      - --server
-      - --addr=0.0.0.0:8181
-      - --diagnostic-addr=0.0.0.0:8282
-      - /policies
-    volumes:
-      - ./policies:/policies:ro # adjust if your policies live elsewhere
-    ports:
-      - "8181:8181"
-    healthcheck:
-      test: ["CMD", "/opa", "version"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 5s
     networks:
       - control-plane
-    !!merge <<: [*default-logging, *default-restart]
+      - observability
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ---------- Policy: OPA ----------
+  opa:
+    image: openpolicyagent/opa:latest
+    # Run HTTP server and watch local policies; mount is RO so we can't "accidentally" edit from inside.
+    command: ["run", "--server", "--addr=0.0.0.0:8181", "--watch", "/policies"]
+    ports:
+      - "8181:8181"
+    volumes:
+      - ./policies:/policies:ro
+    networks:
+      - control-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # No healthcheck: the image is minimal; your smoke script already probes /health from outside.
+
   # ---------- App: Orchestrator ----------
   orchestrator:
     build:
       context: .
       dockerfile: services/orchestrator/Dockerfile
-    image: frostgate-foundry-orchestrator
-    command: ["/entrypoint.sh"]
+    environment:
+      NATS_URL: nats://nats:4222
+      OPA_URL: http://opa:8181
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     ports:
       - "8080:8080"
+    depends_on:
+      # use service_started so we don't need container-level healthchecks
+      nats:
+        condition: service_started
+      opa:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks:
+      - control-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # Python-only healthcheck avoids needing curl/wget in slim images
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).status==200 else sys.exit(1)
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).status==200 else sys.exit(1)"]
       interval: 5s
       timeout: 3s
       retries: 12
       start_period: 5s
-    container_name: frostgate-foundry-orchestrator-1
-    depends_on:
-      - nats
-      - minio
-      - opa
-    # env_file: services/orchestrator/.env.ci  # uncomment + create file when ready
-    networks:
-      - control-plane
-      - range-plane
-    !!merge <<: [*default-logging, *default-restart]
+
   # ---------- App: Ingestors ----------
   ingestors:
     build:
       context: .
       dockerfile: services/ingestors/Dockerfile
-    image: ghcr.io/arescoreadmin/arescore-foundry/ingestors:latest
-    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+    environment:
+      ORCHESTRATOR_URL: http://orchestrator:8080
+      OPA_URL: http://opa:8181
+      NATS_URL: nats://nats:4222
     ports:
       - "8070:8080"
+    depends_on:
+      orchestrator:
+        condition: service_started
+      nats:
+        condition: service_started
+    networks:
+      - control-plane
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - import urllib.request,sys; sys.exit(0) if urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=2).status==200 else sys.exit(1)
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).status==200 else sys.exit(1)"]
       interval: 5s
       timeout: 3s
       retries: 12
       start_period: 5s
-    container_name: frostgate-foundry-ingestors-1
-    depends_on:
-      - nats
-      - minio
-    # env_file: services/ingestors/.env
-    networks:
-      - control-plane
-      - range-plane
-    !!merge <<: [*default-logging, *default-restart]
+
   # ---------- App: Spawn Service ----------
   spawn_service:
     build:
       context: .
       dockerfile: services/spawn_service/Dockerfile
-    image: frostgate-foundry-spawn-service
-    container_name: frostgate-foundry-spawn_service-1
+    environment:
+      ORCHESTRATOR_URL: http://orchestrator:8080
+      OPA_URL: http://opa:8181
+    # Not publishing a host port; wire through an API gateway or add a mapping if you want it public.
     depends_on:
-      - nats
-      - orchestrator
-    # env_file: services/spawn_service/.env
+      orchestrator:
+        condition: service_started
     networks:
       - control-plane
-      - range-plane
-    !!merge <<: [*default-logging, *default-restart]
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
