@@ -7,6 +7,7 @@ WORKDIR /app
 
 COPY services/_generated /app/services/_generated
 COPY services/ingestors/app /app/app
+COPY backend/arescore_foundry_lib /app/arescore_foundry_lib
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* && \
     python -m pip install --upgrade pip && \

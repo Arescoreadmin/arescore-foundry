@@ -4,6 +4,7 @@ WORKDIR /app
 
 COPY services/_generated /app/services/_generated
 COPY services/spawn_service/app /app/app
+COPY backend/arescore_foundry_lib /app/arescore_foundry_lib
 # Ship the scenario templates into the image so /templates/*.yaml exists
 COPY templates /templates
 

@@ -3,6 +3,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 COPY services/_generated /app/services/_generated
 COPY services/consent_registry/app /app/app
+COPY backend/arescore_foundry_lib /app/arescore_foundry_lib
 RUN python -m pip install --upgrade pip &&     if [ -f /app/app/requirements.txt ]; then pip install -r /app/app/requirements.txt; fi
 ENV PYTHONPATH=/app
 EXPOSE 8080

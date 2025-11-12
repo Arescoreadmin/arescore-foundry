@@ -4,3 +4,4 @@
 .git/
 .gitignore
 README.md
+!backend/arescore_foundry_lib/**

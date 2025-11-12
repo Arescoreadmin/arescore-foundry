@@ -4,6 +4,7 @@
 networks:
   control-plane:
   observability:
+  range-plane
 
 volumes:
   nats-data:
