@@ -1,91 +1,76 @@
-# FrostGate Foundry — core stack
-# Compose v2/3 compatible (no top-level "version")
+# paste the YAML block above here exactly
+
+x-defaults: &defaults
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
 
 networks:
-  control-plane:
-  observability:
-  range-plane
+  control-plane: {}
+  range-plane: {}
+  observability: {}
 
 volumes:
-  nats-data:
-  minio-data:
-  loki-data:
+  nats-data: {}
+  minio-data: {}
+  loki-data: {}
 
 services:
   # ---------- Infra: NATS ----------
   nats:
     image: nats:2.10.8
-    command: ["-js", "-m", "8222"]
+    command: ["-js","-m","8222","--server_name","foundry-nats"]
     ports:
-      - "4222:4222"   # clients
-      - "8222:8222"   # monitoring UI/API
-    volumes:
-      - nats-data:/var/lib/nats/jetstream
+      - "4222:4222"  # client
+      - "8222:8222"  # monitor UI
     networks:
       - control-plane
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-    # No healthcheck: base image lacks curl/wget/nc. External smoke tests cover it.
+    volumes:
+      - nats-data:/var/lib/nats/jetstream
+    <<: *defaults
 
   # ---------- Infra: MinIO ----------
   minio:
     image: quay.io/minio/minio:RELEASE.2024-04-18T19-09-19Z
-    command: ["server", "/data", "--console-address", ":9001"]
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+    command: ["server","/data","--console-address",":9001"]
     ports:
       - "9000:9000"
       - "9001:9001"
-    volumes:
-      - minio-data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     networks:
       - control-plane
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
+    volumes:
+      - minio-data:/data
+    <<: *defaults
 
   # ---------- Infra: Loki ----------
   loki:
     image: grafana/loki:2.9.4
-    command: ["-config.file=/etc/loki/config.yml"]
     ports:
       - "3100:3100"
     networks:
-      - control-plane
       - observability
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
+      - range-plane
+    volumes:
+      - loki-data:/loki
+    <<: *defaults
 
-  # ---------- Policy: OPA ----------
+  # ---------- Infra: OPA ----------
   opa:
     image: openpolicyagent/opa:latest
-    # Run HTTP server and watch local policies; mount is RO so we can't "accidentally" edit from inside.
-    command: ["run", "--server", "--addr=0.0.0.0:8181", "--watch", "/policies"]
+    command: ["run","--server","-l","info","/policies"]
     ports:
       - "8181:8181"
-    volumes:
-      - ./policies:/policies:ro
     networks:
       - control-plane
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-    # No healthcheck: the image is minimal; your smoke script already probes /health from outside.
+    volumes:
+      - ./policies:/policies:ro
+    <<: *defaults
 
   # ---------- App: Orchestrator ----------
   orchestrator:
@@ -94,14 +79,11 @@ services:
       dockerfile: services/orchestrator/Dockerfile
     environment:
       NATS_URL: nats://nats:4222
-      OPA_URL: http://opa:8181
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      OPA_URL: http://opa:8181
     ports:
       - "8080:8080"
     depends_on:
-      # use service_started so we don't need container-level healthchecks
       nats:
         condition: service_started
       opa:
@@ -110,50 +92,27 @@ services:
         condition: service_started
     networks:
       - control-plane
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-    # Python-only healthcheck avoids needing curl/wget in slim images
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).status==200 else sys.exit(1)"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 5s
+    <<: *defaults
 
   # ---------- App: Ingestors ----------
   ingestors:
     build:
       context: .
-      dockerfile: services/ingestors/Dockerfile
-    environment:
-      ORCHESTRATOR_URL: http://orchestrator:8080
-      OPA_URL: http://opa:8181
-      NATS_URL: nats://nats:4222
+    # expects FastAPI on 8080 inside
     ports:
       - "8070:8080"
+    environment:
+      NATS_URL: nats://nats:4222
+      LOKI_URL: http://loki:3100
     depends_on:
-      orchestrator:
-        condition: service_started
       nats:
+        condition: service_started
+      loki:
         condition: service_started
     networks:
       - control-plane
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=2).status==200 else sys.exit(1)"]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-      start_period: 5s
+      - observability
+    <<: *defaults
 
   # ---------- App: Spawn Service ----------
   spawn_service:
@@ -161,17 +120,52 @@ services:
       context: .
       dockerfile: services/spawn_service/Dockerfile
     environment:
+      NATS_URL: nats://nats:4222
       ORCHESTRATOR_URL: http://orchestrator:8080
-      OPA_URL: http://opa:8181
-    # Not publishing a host port; wire through an API gateway or add a mapping if you want it public.
     depends_on:
+      nats:
+        condition: service_started
       orchestrator:
         condition: service_started
     networks:
       - control-plane
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
+      - range-plane
+    <<: *defaults
+
+  # ---------- App: FL Coordinator ----------
+  fl_coordinator:
+    build:
+      context: .
+      dockerfile: services/fl_coordinator/Dockerfile
+    environment:
+      ORCHESTRATOR_URL: http://orchestrator:8080
+    ports:
+      - "9092:8080"
+    depends_on:
+      orchestrator:
+        condition: service_started
+    networks:
+      - range-plane
+    <<: *defaults
+
+  # ---------- App: Consent Registry ----------
+  consent_registry:
+    build:
+      context: .
+      dockerfile: services/consent_registry/Dockerfile
+    ports:
+      - "9093:8080"
+    networks:
+      - range-plane
+    <<: *defaults
+
+  # ---------- App: Evidence Bundler ----------
+  evidence_bundler:
+    build:
+      context: .
+      dockerfile: services/evidence_bundler/Dockerfile
+    ports:
+      - "9094:8080"
+    networks:
+      - range-plane
+    <<: *defaults
