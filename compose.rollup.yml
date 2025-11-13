@@ -6,13 +6,14 @@ services:
       context: .
       dockerfile: services/network_overlay/Dockerfile
     profiles: ["control-plane"]
-    network_mode: host
     cap_add:
       - NET_ADMIN
     environment:
       - OVERLAY_DEFAULT_MTU=1600
     ports:
       - "8087:8087"
+    networks:
+      - control-plane
 
   voice_gateway:
     build:
@@ -21,6 +22,8 @@ services:
     profiles: ["control-plane"]
     ports:
       - "8088:8088"
+    networks:
+      - control-plane
 
   forensics_hub:
     build:
