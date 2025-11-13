@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OverlaySpec",
+  "type": "object",
+  "required": ["type", "control_plane", "mtu", "endpoints"],
+  "properties": {
+    "type": {"type": "string"},
+    "control_plane": {"type": "string"},
+    "vni": {"type": "integer"},
+    "label": {"type": "integer"},
+    "sid": {"type": "string"},
+    "mtu": {"type": "integer", "minimum": 1400},
+    "endpoints": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    }
+  },
+  "oneOf": [
+    {"required": ["vni"]},
+    {"required": ["label"]},
+    {"required": ["sid"]}
+  ]
+}

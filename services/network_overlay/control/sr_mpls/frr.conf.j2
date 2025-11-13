@@ -1,0 +1,7 @@
+router ospf
+  router-id {{ router_id }}
+!
+segment-routing
+  traffic-eng
+    segment-list sr-mpls-default
+      index 10 mpls-label {{ label }}

@@ -1,0 +1,7 @@
+{
+  "title": "Voice Path",
+  "panels": [
+    {"title": "Latency", "targets": [{"expr": "voice_latency_ms"}]},
+    {"title": "Jitter", "targets": [{"expr": "voice_jitter_ms"}]}
+  ]
+}
