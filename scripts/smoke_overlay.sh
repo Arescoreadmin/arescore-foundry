@@ -7,23 +7,17 @@ trap 'echo "Smoke test failed at $(date)" >&2' ERR
 # Config
 # -----------------------------
 
-# Allow overrides from CI or local env
 COMPOSE_PROFILES="${COMPOSE_PROFILES:-control-plane,range-plane}"
 COMPOSE_FILES="${COMPOSE_FILES:-compose.yml,compose.federated.yml}"
 
-# Turn comma-separated into repeated -f / --profile flags
 build_compose_cmd() {
   local files profiles
   IFS=',' read -r -a files <<<"$COMPOSE_FILES"
   IFS=',' read -r -a profiles <<<"$COMPOSE_PROFILES"
 
   local args=()
-  for f in "${files[@]}"; do
-    args+=(-f "$f")
-  done
-  for p in "${profiles[@]}"; do
-    args+=(--profile "$p")
-  done
+  for f in "${files[@]}"; do args+=(-f "$f"); done
+  for p in "${profiles[@]}"; do args+=(--profile "$p"); done
 
   printf 'docker compose %s' "${args[*]}"
 }
@@ -31,7 +25,6 @@ build_compose_cmd() {
 COMPOSE="$(build_compose_cmd)"
 CURL="curl -fsS --max-time 3"
 
-# How long we wait for containers / HTTP checks
 RETRIES=${RETRIES:-60}
 SLEEP=${SLEEP:-1}
 
@@ -40,7 +33,7 @@ ok()  { say "OK: $*"; }
 err() { say "FAIL: $*" >&2; }
 
 # -----------------------------
-# 0) OPA unit tests
+# 0) OPA TESTS
 # -----------------------------
 
 say "==> OPA unit tests"
@@ -48,22 +41,19 @@ docker run --rm -v "$PWD/policies:/policies:ro" openpolicyagent/opa:1.10.0 test 
 ok "OPA tests passed"
 
 # -----------------------------
-# 1) Bring stack up
+# 1) Bring up stack
 # -----------------------------
 
-say "==> Ensuring stack is up (core + federated)"
-# Do not rebuild here; images should already be built in CI
-# This keeps the smoke test fast and predictable.
-eval "$COMPOSE up -d --remove-orphans >/dev/null"
+say "==> Ensuring stack is up (compose + federated)"
+eval "$COMPOSE up -d --remove-orphans" >/dev/null
 eval "$COMPOSE ps"
 
 # -----------------------------
-# 2) Container health handling
+# 2) HEALTHCHECK MANAGEMENT
 # -----------------------------
 
 say "==> Waiting for containers to be healthy"
 
-# Services we care about for overlay smoke
 need_healthy=(
   opa
   nats
@@ -78,7 +68,7 @@ need_healthy=(
 
 health_of() {
   local svc="$1"
-  # Grab the first container for the service
+
   local cid
   cid="$(eval "$COMPOSE ps -q \"$svc\"" 2>/dev/null | head -n1 || true)"
   [ -z "$cid" ] && { echo "missing"; return; }
@@ -98,21 +88,22 @@ for svc in "${need_healthy[@]}"; do
   while :; do
     status="$(health_of "$svc")"
 
+    # Healthy or running = pass
     if [ "$status" = "healthy" ] || [ "$status" = "running" ]; then
       ok "$svc healthy"
       break
     fi
 
+    # NATS SPECIAL CASE — Docker health is notoriously flaky for JetStream
+    if [ "$svc" = "nats" ]; then
+      if eval "$COMPOSE logs \"$svc\"" | grep -q "Server is ready"; then
+        ok "nats ready (log-based readiness)"
+        break
+      fi
+    fi
+
     i=$((i+1))
     if [ $i -ge "$RETRIES" ]; then
-      # NATS special-case: Docker health can lag forever while server is actually ready.
-      if [ "$svc" = "nats" ]; then
-        if eval "$COMPOSE logs \"$svc\"" 2>/dev/null | grep -q "Server is ready"; then
-          ok "nats ready (healthcheck never flipped, using log heuristic)"
-          break
-        fi
-      fi
-
       err "$svc did not become healthy (last status: $status)"
       eval "$COMPOSE logs --tail=80 \"$svc\"" || true
       exit 1
@@ -123,7 +114,7 @@ for svc in "${need_healthy[@]}"; do
 done
 
 # -----------------------------
-# 3) HTTP-level checks
+# 3) HTTP CHECKS
 # -----------------------------
 
 wait_http() {
@@ -132,19 +123,13 @@ wait_http() {
 
   while :; do
     if [ "$method" = "GET" ]; then
-      if $CURL "$url" >/dev/null 2>&1; then
-        return 0
-      fi
+      $CURL "$url" >/dev/null 2>&1 && return 0
     else
-      if printf '%s' "$body" | $CURL -X "$method" -d @- "$url" >/dev/null 2>&1; then
-        return 0
-      fi
+      printf '%s' "$body" | $CURL -X "$method" -d @- "$url" >/dev/null 2>&1 && return 0
     fi
 
     i=$((i+1))
-    if [ $i -ge "$RETRIES" ]; then
-      return 1
-    fi
+    [ $i -ge "$RETRIES" ] && return 1
     sleep "$SLEEP"
   done
 }
@@ -171,10 +156,5 @@ for label in "${!checks[@]}"; do
   fi
 done
 
-if [ "$fail" -eq 0 ]; then
-  say "All green."
-  exit 0
-else
-  say "One or more checks failed."
-  exit 1
-fi
+[ "$fail" -eq 0 ] && say "All green." || say "One or more checks failed."
+exit "$fail"
