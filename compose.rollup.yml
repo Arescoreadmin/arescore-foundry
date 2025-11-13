@@ -6,7 +6,8 @@ services:
       context: .
       dockerfile: services/network_overlay/Dockerfile
     profiles: ["control-plane"]
-    network_mode: host
+    networks:
+      - control-plane
     cap_add:
       - NET_ADMIN
     environment:
@@ -19,6 +20,8 @@ services:
       context: .
       dockerfile: services/voice_gateway/Dockerfile
     profiles: ["control-plane"]
+    networks:
+      - control-plane
     ports:
       - "8088:8088"
 
