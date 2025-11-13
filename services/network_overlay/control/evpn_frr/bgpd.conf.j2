@@ -1,0 +1,8 @@
+router bgp {{ asn }}
+  bgp router-id {{ router_id }}
+  no bgp default ipv4-unicast
+  neighbor fabric peer-group
+  neighbor fabric remote-as external
+  address-family l2vpn evpn
+    neighbor fabric activate
+    advertise-all-vni

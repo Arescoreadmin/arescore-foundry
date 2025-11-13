@@ -1,0 +1,7 @@
+{
+  "title": "Overlay Clinic",
+  "panels": [
+    {"title": "MTU", "targets": [{"expr": "overlay_mtu"}]},
+    {"title": "BUM", "targets": [{"expr": "overlay_bum_events"}]}
+  ]
+}
