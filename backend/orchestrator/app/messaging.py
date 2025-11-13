@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from typing import Awaitable, Callable, List, Optional
@@ -81,9 +80,8 @@ class InMemoryEventBus(EventBus):
 class NATSBus(EventBus):
     """NATS backed event bus."""
 
-    def __init__(self, url: str = "nats://localhost:4222", *, loop: Optional[asyncio.AbstractEventLoop] = None) -> None:
+    def __init__(self, url: str = "nats://localhost:4222") -> None:
         self._url = url
-        self._loop = loop or asyncio.get_event_loop()
         self._nc: Optional[NATS] = None  # type: ignore[assignment]
         self._status_handlers: List[StatusHandler] = []
         self._status_subscription = None
@@ -100,7 +98,7 @@ class NATSBus(EventBus):
             return
         self._nc = NATS()  # type: ignore[call-arg]
         try:
-            await self._nc.connect(self._url, loop=self._loop)
+            await self._nc.connect(self._url)
             logger.info("Connected to NATS at %s", self._url)
         except Exception as exc:  # pragma: no cover - depends on runtime environment
             logger.error("Failed to connect to NATS: %s", exc)
