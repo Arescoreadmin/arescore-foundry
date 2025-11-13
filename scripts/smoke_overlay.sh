@@ -1,6 +1,7 @@
 # scripts/smoke_overlay.sh
 #!/usr/bin/env bash
 set -euo pipefail
+trap 'echo "Smoke test failed at $(date)"' ERR
 
 COMPOSE="docker compose --profile control-plane --profile range-plane -f compose.yml -f compose.federated.yml"
 CURL="curl -fsS --max-time 3"

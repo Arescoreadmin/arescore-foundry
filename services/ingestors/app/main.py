@@ -1,94 +1,163 @@
-import io
-import os
-import uuid
-from typing import Dict, Optional
-
+# services/ingestors/app/main.py
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.responses import JSONResponse
-import httpx
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from starlette.middleware.base import BaseHTTPMiddleware
+from typing import Dict, Optional
+import os
+import io
+import uuid
+import hashlib
+import logging
+
 from minio import Minio
 from minio.error import S3Error
 
-from arescore_foundry_lib.logging_setup import configure_logging
-configure_logging()
+# ---- Observability: JSON logs + request correlation ----
+from arescore_foundry_lib.logging_setup import configure_logging, _request_id_ctx, get_request_id
 
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
-from arescore_foundry_lib.logging_setup import _request_id_ctx, get_request_id
-import logging, uuid
-logger = logging.getLogger("request")
+configure_logging()
+logger = logging.getLogger("ingestors")
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         _request_id_ctx.set(str(uuid.uuid4()))
         response = await call_next(request)
         response.headers["X-Request-ID"] = get_request_id()
-        logger.info(f"{request.method} {request.url.path} -> {response.status_code}")
+        logging.getLogger("request").info(f"{request.method} {request.url.path} -> {response.status_code}")
         return response
 
 app = FastAPI(title="ingestors")
+app.add_middleware(RequestIDMiddleware)
 
-_ready = False
+# ---- Config via env with sane defaults ----
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "minio:9000")
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+MINIO_SECURE = os.getenv("MINIO_SECURE", "false").lower() == "true"
+DEFAULT_BUCKET = os.getenv("INGEST_BUCKET", "ingest")
+MAX_UPLOAD_BYTES = int(os.getenv("INGEST_MAX_BYTES", str(50 * 1024 * 1024)))  # 50MB default
 
 
-def _minio_client() -> Minio:
-    endpoint = os.getenv("MINIO_ENDPOINT", "minio:9000")
-    access_key = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
-    secret_key = os.getenv("MINIO_SECRET_KEY", "minioadmin")
-    secure = os.getenv("MINIO_SECURE", "false").lower() in {"1", "true", "yes"}
-    return Minio(endpoint, access_key=access_key, secret_key=secret_key, secure=secure)
+def minio_client() -> Minio:
+    return Minio(
+        MINIO_ENDPOINT,
+        access_key=MINIO_ACCESS_KEY,
+        secret_key=MINIO_SECRET_KEY,
+        secure=MINIO_SECURE,
+    )
 
 
 def ensure_bucket(client: Minio, bucket: str) -> None:
-    if client.bucket_exists(bucket):
-        return
-    client.make_bucket(bucket)
+    if not client.bucket_exists(bucket):
+        client.make_bucket(bucket)
 
 
-@app.on_event("startup")
-def startup() -> None:
-    global _ready
-    _ready = True
+def sha256_bytes(data: bytes) -> str:
+    h = hashlib.sha256()
+    h.update(data)
+    return h.hexdigest()
 
 
-@app.get("/health", tags=["meta"])
-def health() -> JSONResponse:
-    return JSONResponse({"status": "ok"})
-
-
-@app.get("/ready", tags=["meta"])
-def ready() -> JSONResponse:
-    try:
-        client = _minio_client()
-        bucket = os.getenv("MINIO_BUCKET", "scenarios")
-        ensure_bucket(client, bucket)
-        return JSONResponse({"status": "ready"})
-    except Exception as exc:  # broader catch to avoid crashing on non-S3 errors
-        raise HTTPException(status_code=502, detail=f"MinIO unavailable: {exc}")
+@app.get("/health")
+def health() -> Dict[str, str]:
+    return {"status": "ok"}
 
 
 @app.post("/api/ingest")
-async def ingest_document(file: UploadFile = File(...)) -> Dict[str, Optional[str]]:
-    ...
-    client = _minio_client()
+async def ingest_document(
+    file: UploadFile = File(..., description="File to ingest into object storage"),
+    bucket: Optional[str] = None,
+    object_name: Optional[str] = None,
+) -> Dict[str, str]:
+    """
+    Ingest a file into MinIO.
+
+    Query params:
+      - bucket: override target bucket (default from env/`ingest`)
+      - object_name: override object key (defaults to uploaded filename or UUID)
+    """
+    target_bucket = (bucket or DEFAULT_BUCKET).strip()
+    if not target_bucket:
+        raise HTTPException(status_code=400, detail="Bucket name cannot be empty.")
+
+    # Determine object name
+    key = (object_name or file.filename or f"upload-{uuid.uuid4().hex}").strip()
+
     try:
-        ensure_bucket(client, bucket)   # lazy create
-        data_stream = io.BytesIO(data)
-        client.put_object(bucket, object_name, data_stream, length=len(data))
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Upload failed: {exc}")
+        # Read the upload into memory; enforce size limit
+        data = await file.read()
+        if len(data) == 0:
+            raise HTTPException(status_code=400, detail="Empty file.")
+        if len(data) > MAX_UPLOAD_BYTES:
+            raise HTTPException(status_code=413, detail=f"File too large (> {MAX_UPLOAD_BYTES} bytes).")
 
-    control_plane_api = os.getenv("CONTROL_PLANE_SCENARIO_API")
-    if control_plane_api:
-        payload = {
-            "object": object_name,
-            "bucket": bucket,
-            "filename": file.filename,
+        # Prepare upload
+        client = minio_client()
+        ensure_bucket(client, target_bucket)
+
+        content_type = file.content_type or "application/octet-stream"
+        body = io.BytesIO(data)
+        digest = sha256_bytes(data)
+        req_id = get_request_id() or ""
+
+        # Upload (MinIO needs exact length)
+        result = client.put_object(
+            target_bucket,
+            key,
+            body,
+            length=len(data),
+            content_type=content_type,
+            metadata={
+                "X-Request-ID": req_id,
+                "X-SHA256": digest,
+                "X-Original-Filename": file.filename or "",
+            },
+        )
+
+        logger.info(
+            "ingest_ok",
+            extra={
+                "bucket": target_bucket,
+                "object": key,
+                "size": len(data),
+                "etag": getattr(result, "etag", None),
+                "version_id": getattr(result, "version_id", None),
+                "request_id": req_id,
+                "sha256": digest,
+                "content_type": content_type,
+            },
+        )
+
+        return {
+            "bucket": target_bucket,
+            "object": key,
+            "size": str(len(data)),
+            "etag": getattr(result, "etag", ""),
+            "version_id": getattr(result, "version_id", ""),
+            "sha256": digest,
+            "content_type": content_type,
+            "request_id": req_id,
         }
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                await client.post(control_plane_api, json=payload)
-        except httpx.RequestError as exc:  # pragma: no cover - network call
-            raise HTTPException(status_code=502, detail=f"Control plane sync failed: {exc}")
 
-    return {"object": object_name, "bucket": bucket}
+    except HTTPException:
+        raise
+    except S3Error as s3e:
+        logger.exception("minio_error")
+        raise HTTPException(status_code=502, detail=f"MinIO error: {s3e.code}")
+    except Exception as exc:
+        logger.exception("ingest_unexpected_error")
+        raise HTTPException(status_code=500, detail="Unexpected error during ingest.")  # do not leak internals
+
+
+# Optional: nicer JSON error shape
+@app.exception_handler(HTTPException)
+async def http_exception_handler(_: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": True,
+            "status": exc.status_code,
+            "detail": exc.detail,
+            "request_id": get_request_id() or "",
+        },
+    )

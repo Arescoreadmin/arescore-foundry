@@ -1,7 +1,11 @@
 import os
 from fastapi import FastAPI
+from fastapi import FastAPI
+from app.routers import ingest
 
-app = FastAPI()
+app = FastAPI(title="Foundry")
+app.include_router(ingest.router)
+
 
 @app.get("/health")
 def health():
