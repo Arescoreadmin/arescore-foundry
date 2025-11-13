@@ -78,7 +78,7 @@ async def ingest_document(
             checksum = hasher.hexdigest()
             spooled.seek(0)
 
-            client.put_object(
+            put_result = client.put_object(
                 bucket_name=bucket,
                 object_name=object_name,
                 data=spooled,
@@ -86,7 +86,20 @@ async def ingest_document(
                 content_type=file.content_type or None,
             )
 
-        resp = {"bucket": bucket, "object": object_name, "size": total, "sha256": checksum}
+        resp = {
+            "bucket": bucket,
+            "object": object_name,
+            "size": total,
+            "sha256": checksum,
+        }
+
+        if put_result is not None:
+            etag = getattr(put_result, "etag", None)
+            version_id = getattr(put_result, "version_id", None)
+            if etag:
+                resp["etag"] = etag
+            if version_id:
+                resp["version_id"] = version_id
 
         if ENABLE_PRESIGNED:
             url = client.get_presigned_url(
