@@ -35,9 +35,7 @@ services:
     profiles:
       - range-plane
   fl_coordinator:
-    build:
-      context: .
-      dockerfile: services/fl_coordinator/Dockerfile
+    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescoreadmin/arescore-foundry}/fl_coordinator:latest
     depends_on:
       orchestrator:
         condition: service_started
@@ -51,9 +49,7 @@ services:
     profiles:
       - range-plane
   consent_registry:
-    build:
-      context: .
-      dockerfile: services/consent_registry/Dockerfile
+    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescoreadmin/arescore-foundry}/consent_registry:latest
     depends_on:
       orchestrator:
         condition: service_started
@@ -67,9 +63,7 @@ services:
     profiles:
       - range-plane
   evidence_bundler:
-    build:
-      context: .
-      dockerfile: services/evidence_bundler/Dockerfile
+    image: ghcr.io/${GITHUB_REPOSITORY_LC:-arescoreadmin/arescore-foundry}/evidence_bundler:latest
     depends_on:
       orchestrator:
         condition: service_started

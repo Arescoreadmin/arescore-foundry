@@ -20,3 +20,13 @@ jobs:
           echo "Linting repo structure..."
           test -d .github && echo "✓ .github exists" || (echo "missing .github" && exit 1)
           echo "Audit complete."
+      - name: Ensure compose overlays use GHCR env interpolation
+        run: |
+          set -euo pipefail
+          for file in compose.federated.yml compose.staging.yml; do
+            if ! grep -q 'GITHUB_REPOSITORY_LC' "$file"; then
+              echo "::error::$file must reference GITHUB_REPOSITORY_LC"
+              exit 1
+            fi
+            echo "✓ $file"
+          done

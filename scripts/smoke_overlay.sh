@@ -5,6 +5,12 @@ set -euo pipefail
 COMPOSE="docker compose --profile control-plane --profile range-plane -f compose.yml -f compose.federated.yml"
 CURL="curl -fsS --max-time 3"
 
+# Allow overriding the GHCR namespace without requiring a .env file. Docker compose
+# will still honor a .env value if one is present, but this keeps the smoke test
+# self-contained.
+: "${GITHUB_REPOSITORY_LC:=arescoreadmin/arescore-foundry}"
+export GITHUB_REPOSITORY_LC
+
 RETRIES=${RETRIES:-40}
 SLEEP=${SLEEP:-1}
 
