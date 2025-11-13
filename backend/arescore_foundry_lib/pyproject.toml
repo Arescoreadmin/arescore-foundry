@@ -1,15 +1,18 @@
 [build-system]
-requires = ["setuptools>=67"]
+requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "arescore-foundry-lib"
-version = "0.1.0"
-description = "Shared utilities for the Arescore Foundry services."
-requires-python = ">=3.10"
-license = {text = "Proprietary"}
-authors = [
-  {name = "Arescore"}
+name = "arescore_foundry_lib"
+version = "0.1.1"
+description = "Shared foundry utilities"
+requires-python = ">=3.12"
+
+dependencies = [
+    "httpx>=0.28,<0.29",
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.4,<3",
+    "pyyaml>=6.0",
 ]
 
 [tool.setuptools.packages.find]

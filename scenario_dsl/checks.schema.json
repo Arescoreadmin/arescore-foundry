@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Checks",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["name", "probe"],
+    "properties": {
+      "name": {"type": "string"},
+      "probe": {"type": "string"},
+      "params": {"type": "object"}
+    }
+  }
+}

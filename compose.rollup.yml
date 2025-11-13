@@ -1,0 +1,76 @@
+version: "3.9"
+
+services:
+  network_overlay:
+    build:
+      context: .
+      dockerfile: services/network_overlay/Dockerfile
+    profiles: ["control-plane"]
+    networks:
+      - control-plane
+    cap_add:
+      - NET_ADMIN
+    environment:
+      - OVERLAY_DEFAULT_MTU=1600
+    ports:
+      - "8087:8087"
+    networks:
+      - control-plane
+
+  voice_gateway:
+    build:
+      context: .
+      dockerfile: services/voice_gateway/Dockerfile
+    profiles: ["control-plane"]
+    networks:
+      - control-plane
+    ports:
+      - "8088:8088"
+
+  forensics_hub:
+    build:
+      context: .
+      dockerfile: services/forensics_hub/Dockerfile
+    profiles: ["range-plane"]
+    ports:
+      - "8091:8090"
+
+  wireless_lab:
+    build:
+      context: .
+      dockerfile: services/wireless_lab/Dockerfile
+    profiles: ["range-plane"]
+    ports:
+      - "8092:8090"
+
+  cloudsec_lab:
+    build:
+      context: .
+      dockerfile: services/cloudsec_lab/Dockerfile
+    profiles: ["range-plane"]
+    ports:
+      - "8093:8090"
+
+  appsec_lab:
+    build:
+      context: .
+      dockerfile: services/appsec_lab/Dockerfile
+    profiles: ["range-plane"]
+    ports:
+      - "8094:8090"
+
+  crypto_lab:
+    build:
+      context: .
+      dockerfile: services/crypto_lab/Dockerfile
+    profiles: ["range-plane"]
+    ports:
+      - "8095:8090"
+
+  ot_lab:
+    build:
+      context: .
+      dockerfile: services/ot_lab/Dockerfile
+    profiles: ["range-plane"]
+    ports:
+      - "8096:8090"

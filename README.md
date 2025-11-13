@@ -12,6 +12,15 @@ cp .env.example .env
 make up          # or docker compose up --build
 ```
 
+Enable the telemetry collector overlay (Loki + Promtail + Grafana) when you want
+indexed audit trails:
+
+```bash
+USE_TELEMETRY=1 make up
+```
+
+Grafana becomes available at http://localhost:3001 (default login `admin/admin`).
+
 Health checks  
 - API: http://localhost:8000/health  
 - Orchestrator: http://localhost:8082/health  

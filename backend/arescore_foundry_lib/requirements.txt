@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+pyyaml
+nats-py
+httpx==0.28.1
+pydantic<3,>=2.7
+pydantic-settings<3,>=2.4

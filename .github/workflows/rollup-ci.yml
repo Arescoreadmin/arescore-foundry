@@ -1,0 +1,29 @@
+name: rollup-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-services:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - services/network_overlay/Dockerfile
+          - services/voice_gateway/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.service }}
+        run: |
+          docker build -f ${{ matrix.service }} .
+
+  policy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure OPA policies exist
+        run: |
+          test -s services/network_overlay/policy/overlay_policy.rego
+          test -s services/voice_gateway/policy/qos_policy.rego
