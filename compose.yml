@@ -33,7 +33,7 @@ services:
     !!merge <<: [*default-logging, *default-restart]
   # ---------- Infra: MinIO ----------
   minio:
-    image: quay.io/minio/minio:RELEASE.2024-10-13T07-09-29Z
+    image: quay.io/minio/minio:RELEASE.2024-04-18T19-09-19Z
     command: [server, /data, --console-address, ':9001']
     ports:
       - 9000:9000
