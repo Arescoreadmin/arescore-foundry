@@ -16,10 +16,14 @@ app = FastAPI(
 
 @app.on_event("startup")
 def startup() -> None:
+    # Ensure tables exist; safe for SQLite dev
     Base.metadata.create_all(bind=engine)
 
 
+# Health router: /health, /health/live, /health/ready
 app.include_router(health.router)
+
+# Business routers
 app.include_router(plans.router)
 app.include_router(tenants.router)
 app.include_router(users.router)

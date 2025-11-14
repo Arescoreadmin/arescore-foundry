@@ -11,7 +11,8 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import JSON
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from .database import Base
@@ -108,7 +109,7 @@ class ScenarioTemplate(Base, TimestampMixin):
     slug: Mapped[str] = mapped_column(String(255), nullable=False)
     track: Mapped[str] = mapped_column(String(128), nullable=False)
     description: Mapped[str | None] = mapped_column(Text(), nullable=True)
-    definition: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    definition: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
     )

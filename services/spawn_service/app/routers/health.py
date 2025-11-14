@@ -1,20 +1,16 @@
 from fastapi import APIRouter
 
-from ..schemas import HealthResponse
-
 router = APIRouter(tags=["health"])
 
+@router.get("/health")
+async def health_root() -> dict:
+    return {"ok": True}
 
-@router.get("/health", response_model=HealthResponse)
-def health() -> HealthResponse:
-    return HealthResponse()
+@router.get("/health/live")
+async def health_live() -> dict:
+    return {"ok": True, "status": "live"}
 
-
-@router.get("/live")
-def live() -> dict:
-    return {"status": "alive"}
-
-
-@router.get("/ready")
-def ready() -> dict:
-    return {"status": "ready"}
+@router.get("/health/ready")
+async def health_ready() -> dict:
+    # If you want to add DB checks later, this is the place.
+    return {"ok": True, "status": "ready"}

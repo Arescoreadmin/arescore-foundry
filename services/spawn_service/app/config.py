@@ -8,9 +8,22 @@ logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
-    # Ignore extra env vars instead of exploding during tests
-    model_config = SettingsConfigDict(extra="ignore")
+    # Pydantic v2-style config
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+    )
 
+    app_name: str = "Spawn Service"
+    app_version: str = "0.1.0"
+
+    # DB
+    database_url: str = Field(
+        default="sqlite:///./spawn_service.db",
+        alias="DATABASE_URL",
+    )
+
+    # Service URLs
     log_indexer_url: str = Field(
         default="http://log_indexer:9000",
         alias="LOG_INDEXER_URL",
@@ -35,6 +48,8 @@ class Settings(BaseSettings):
         default="http://localhost:8000",
         alias="VITE_API_BASE",
     )
+
+    # Tokens
     log_token: str = Field(
         default="dev",
         alias="LOG_TOKEN",
@@ -64,7 +79,8 @@ class Settings(BaseSettings):
 
 def get_settings() -> Settings:
     settings = Settings()
-    # Don’t log secrets, but log everything else
+    # Don’t log secrets
     safe = settings.model_dump(exclude={"jwt_secret"})
     logger.debug("Spawn Settings loaded: %s", safe)
     return settings
+
