@@ -150,12 +150,13 @@ services:
       context: .
       dockerfile: services/spawn_service/Dockerfile
     image: frostgate-foundry-spawn-service
-    container_name: frostgate-foundry-spawn_service-1
     depends_on:
       - nats
-      - orchestrator
-    # env_file: services/spawn_service/.env
+      - minio
+      - opa
     networks:
       - control-plane
-      - range-plane
+    ports:
+      - "8005:8080"
+
     !!merge <<: [*default-logging, *default-restart]

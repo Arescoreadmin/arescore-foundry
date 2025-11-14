@@ -43,3 +43,4 @@ audits/*
 !audits/.gitignore
 usage/
 fix_audit_smoke_id.sh
+scripts/git_clean_branches.sh
