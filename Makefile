@@ -40,7 +40,7 @@ endef
 .PHONY: help
 help:
 	@echo "AresCore Foundry — common targets"
-@echo "  make up                 # start stack (add USE_FEDERATED=1, PROD_USE_STAGING=1, USE_TELEMETRY=1)"
+	@echo "  make up                 # start stack (add USE_FEDERATED=1, PROD_USE_STAGING=1, USE_TELEMETRY=1)"
 	@echo "  make down               # stop stack + remove orphans"
 	@echo "  make build              # build images (honors overlays)"
 	@echo "  make rebuild            # build --no-cache and start"
