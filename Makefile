@@ -141,6 +141,11 @@ release:
 overlay-smoke:
 	bash ./scripts/smoke_overlay.sh
 
+.PHONY: ci-hardening
+ci-hardening:
+	$(call _header,CI hardening)
+	@pytest tests/test_ui_dashboards.py
+
 .PHONY: sbom
 sbom:
 	@PROJECT_NAME=arescore-foundry \

@@ -27,3 +27,11 @@ jobs:
         run: |
           test -s services/network_overlay/policy/overlay_policy.rego
           test -s services/voice_gateway/policy/qos_policy.rego
+
+  ci-hardening:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run dashboard hardening tests
+        run: |
+          make ci-hardening
