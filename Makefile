@@ -40,7 +40,7 @@ endef
 .PHONY: help
 help:
 	@echo "AresCore Foundry — common targets"
-@echo "  make up                 # start stack (add USE_FEDERATED=1, PROD_USE_STAGING=1, USE_TELEMETRY=1)"
+	@echo "  make up                 # start stack (add USE_FEDERATED=1, PROD_USE_STAGING=1, USE_TELEMETRY=1)"
 	@echo "  make down               # stop stack + remove orphans"
 	@echo "  make build              # build images (honors overlays)"
 	@echo "  make rebuild            # build --no-cache and start"
@@ -50,6 +50,7 @@ help:
 	@echo "  make opa-check          # static check policies"
 	@echo "  make opa-test           # run OPA unit tests"
 	@echo "  make opa-eval           # sample eval against policies"
+	@echo "  make ci-hardening       # run security hardening tests"
 	@echo "  make smoke              # overlay smoke (ensures up + hits endpoints)"
 	@echo "  make fix                # run foundry_autofix.sh (root required)"
 	@echo "  make release            # run scripts/prod_release_v2.sh"
@@ -120,6 +121,11 @@ logs:
 smoke: up
 	$(call _header,Overlay smoke)
 	@bash ./scripts/smoke_overlay.sh
+
+.PHONY: ci-hardening
+ci-hardening:
+	$(call _header,Security hardening tests)
+	@pytest tests/security
 
 .PHONY: fix
 fix:
