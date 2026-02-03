@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { BrandHeader } from "@/components/layout/brand-header";
 import { fetchUi } from "@/lib/ui-api";
 import { ForensicsExport } from "./forensics-export";
 
@@ -24,6 +25,10 @@ export default async function ForensicsPage() {
 
   return (
     <div className="space-y-6">
+      <BrandHeader
+        title="Evidence & Forensics"
+        subtitle="Frostgate chain-of-custody verification and forensic readiness."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Evidence &amp; Forensics</CardTitle>

@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { BrandHeader } from "@/components/layout/brand-header";
 import { fetchAdmin } from "@/lib/admin-api";
 import { AdminActions } from "./admin-actions";
 
@@ -37,6 +38,10 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-6">
+      <BrandHeader
+        title="Admin Console"
+        subtitle="Frostgate admin operations with tenant and global oversight."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Admin Console</CardTitle>

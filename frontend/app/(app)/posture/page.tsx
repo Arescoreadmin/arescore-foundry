@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { BrandHeader } from "@/components/layout/brand-header";
 import { fetchUi } from "@/lib/ui-api";
 
 type PostureResponse = {
@@ -44,6 +45,10 @@ export default async function PosturePage() {
 
   return (
     <div className="space-y-6">
+      <BrandHeader
+        title="Security Posture"
+        subtitle="Frostgate-aligned posture tiles, denial trends, and enforcement insights."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Security Posture</CardTitle>
