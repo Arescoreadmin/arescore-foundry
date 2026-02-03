@@ -521,3 +521,15 @@ helm upgrade --install range-plane infra/helm/range-plane \
 ```
 
 > ℹ️ Customize image registries by exporting `GITHUB_REPOSITORY_LC` (for Compose overlays) and tenant metadata through the Terraform/Helm value files.
+
+---
+
+## Security Hardening Notes
+
+- **Evidence chain (Forensics Hub)**: Each decision record stores `prev_hash`, `chain_hash`, `chain_alg`,
+  and `chain_ts` to maintain a per-tenant, tamper-evident chain. Use
+  `GET /forensics/chain/verify?tenant_id=...` to verify integrity.
+- **API key hashing**: New keys are hashed with Argon2id. Set `FG_KEY_PEPPER` in production to enable a
+  server-side pepper; legacy SHA-256 keys are upgraded on successful verification.
+- **DB migration note**: Production databases must add the evidence-chain columns on `decisions`
+  (`prev_hash`, `chain_hash`, `chain_alg`, `chain_ts`). SQLite dev databases auto-migrate on startup.

@@ -50,6 +50,7 @@ help:
 	@echo "  make opa-check          # static check policies"
 	@echo "  make opa-test           # run OPA unit tests"
 	@echo "  make opa-eval           # sample eval against policies"
+	@echo "  make ci-hardening       # run security hardening tests"
 	@echo "  make smoke              # overlay smoke (ensures up + hits endpoints)"
 	@echo "  make fix                # run foundry_autofix.sh (root required)"
 	@echo "  make release            # run scripts/prod_release_v2.sh"
@@ -120,6 +121,11 @@ logs:
 smoke: up
 	$(call _header,Overlay smoke)
 	@bash ./scripts/smoke_overlay.sh
+
+.PHONY: ci-hardening
+ci-hardening:
+	$(call _header,Security hardening tests)
+	@pytest tests/security
 
 .PHONY: fix
 fix:
