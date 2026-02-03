@@ -54,6 +54,8 @@ Foundry isn’t a simulator. It’s a **parallel digital world** where FrostGate
 | DevOps | CI/CD + infra templates | GitHub Actions + Terraform |
 | Storage | Durable state & payloads | Postgres + MinIO + Elasticsearch |
 
+For a tenant-safe dashboard tour (posture, forensics, controls, admin console) and audit packet export details, see [docs/dashboards.md](docs/dashboards.md).
+
 All services are containerized and communicate via APIs or queues — no shared deps.
 
 ---

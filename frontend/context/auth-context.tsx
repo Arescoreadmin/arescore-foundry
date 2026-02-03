@@ -12,12 +12,14 @@ export type TenantUser = {
   runeColor: string;
   plan: PlanTier;
   abilities: FeatureFlag[];
+  scopes: string[];
 };
 
 type AuthContextValue = {
   user: TenantUser;
   setPlan: (plan: PlanTier) => void;
   hasFeature: (feature: FeatureFlag) => boolean;
+  hasScope: (scope: string) => boolean;
 };
 
 const defaultUser: TenantUser = {
@@ -26,6 +28,23 @@ const defaultUser: TenantUser = {
   runeColor: "from-primary to-secondary",
   plan: "advanced",
   abilities: featureMatrix["advanced"],
+  scopes: [
+    "ui:posture:read",
+    "ui:decisions:read",
+    "ui:forensics:read",
+    "ui:audit:export",
+    "ui:controls:read",
+    "ui:training:read",
+    "ui:sites:read",
+    "ui:devices:read",
+    "ui:audit:read",
+    "ui:leaderboard:read",
+    "admin:tenant",
+    "admin:audit:read",
+    "admin:keys:write",
+    "admin:global",
+    "admin:quota:write",
+  ],
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -45,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           abilities: featureMatrix[plan],
         })),
       hasFeature: (feature) => matrix.includes(feature),
+      hasScope: (scope) => user.scopes.includes(scope) || user.scopes.includes("*"),
     };
   }, [user]);
 
@@ -73,6 +93,24 @@ export function TenantFeatureGate({
   const { hasFeature } = useAuth();
 
   if (!hasFeature(feature)) {
+    return <>{fallback}</>;
+  }
+
+  return <>{children}</>;
+}
+
+export function TenantScopeGate({
+  scope,
+  children,
+  fallback = null,
+}: {
+  scope: string;
+  children: ReactNode;
+  fallback?: ReactNode;
+}) {
+  const { hasScope } = useAuth();
+
+  if (!hasScope(scope)) {
     return <>{fallback}</>;
   }
 
