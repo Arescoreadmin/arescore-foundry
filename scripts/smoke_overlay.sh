@@ -65,7 +65,7 @@ wait_http() {
     if [ "$method" = "GET" ]; then
       if $CURL "$url" >/dev/null 2>&1; then return 0; fi
     else
-      if printf '%s' "$body" | $CURL -X "$method" -d @- "$url" >/dev/null 2>&1; then return 0; fi
+      if printf '%s' "$body" | $CURL -X "$method" -H "content-type: application/json" -d @- "$url" >/dev/null 2>&1; then return 0; fi
     fi
     i=$((i+1)); [ $i -ge $RETRIES ] && return 1
     sleep "$SLEEP"
@@ -74,18 +74,18 @@ wait_http() {
 
 say "==> Service health checks"
 declare -A checks=(
-  ["fl_coordinator (GET /health)"]="GET http://127.0.0.1:9092/health"
-  ["consent_opt_in (POST /consent/training/optin)"]="POST http://127.0.0.1:9093/consent/training/optin"
-  ["consent_crl (GET /crl)"]="GET http://127.0.0.1:9093/crl"
-  ["evidence_bundler (GET /health)"]="GET http://127.0.0.1:9094/health"
-  ["orchestrator (GET /health)"]="GET http://127.0.0.1:8080/health"
-  ["ingestors (GET /health)"]="GET http://127.0.0.1:8070/health"
+  ["fl_coordinator (GET /health)"]="GET|http://127.0.0.1:9092/health|"
+  ["consent_opt_in (POST /consent/training/optin)"]="POST|http://127.0.0.1:9093/consent/training/optin|{\"subject\":\"smoke\",\"token\":\"smoke-token\",\"metadata\":{}}"
+  ["consent_crl (GET /crl)"]="GET|http://127.0.0.1:9093/crl|"
+  ["evidence_bundler (GET /health)"]="GET|http://127.0.0.1:9094/health|"
+  ["orchestrator (GET /health)"]="GET|http://127.0.0.1:8080/health|"
+  ["ingestors (GET /health)"]="GET|http://127.0.0.1:8070/health|"
 )
 
 fail=0
 for label in "${!checks[@]}"; do
-  read -r method url <<<"${checks[$label]}"
-  if wait_http "$method" "$url"; then
+  IFS="|" read -r method url body <<<"${checks[$label]}"
+  if wait_http "$method" "$url" "$body"; then
     ok "$label"
   else
     err "$label (URL: $url)"
